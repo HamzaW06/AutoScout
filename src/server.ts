@@ -1,3 +1,5 @@
+import path from 'path';
+import { fileURLToPath } from 'url';
 import express, { Request, Response, NextFunction } from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
@@ -241,6 +243,11 @@ export function createServer(): express.Express {
     }),
   );
   app.use(express.json({ limit: '1mb' }));
+
+  // ----- Serve frontend static files -----
+  const __dirname = path.dirname(fileURLToPath(import.meta.url));
+  const webDist = path.join(__dirname, '..', 'web', 'dist');
+  app.use(express.static(webDist));
 
   // ==========================================================================
   // Listings
@@ -1150,6 +1157,11 @@ export function createServer(): express.Express {
   app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
     logger.error(err, 'API error');
     res.status(500).json({ error: 'Internal server error' });
+  });
+
+  // ----- SPA fallback: serve index.html for all non-API routes -----
+  app.get('*', (_req, res) => {
+    res.sendFile(path.join(webDist, 'index.html'));
   });
 
   return app;

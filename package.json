@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "tsc",
+    "build": "tsc && cd web && npm run build",
     "start": "node dist/index.js",
     "seed-db": "tsx scripts/seed-db.ts",
     "scrape-now": "tsx scripts/scrape-now.ts",
