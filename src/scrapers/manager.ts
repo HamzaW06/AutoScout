@@ -19,6 +19,7 @@ import {
 } from '../db/queries.js';
 import { DealerHealthTracker, emitIfStateChanged } from './health.js';
 import { processListings } from '../enrichment/pipeline.js';
+import { emitScrapeComplete } from '../websocket.js';
 import type { BaseScraper, ScraperResult } from './base.js';
 import type { DealerRow, ScrapeLogRow } from '../db/queries.js';
 
@@ -165,6 +166,9 @@ export class ScraperManager {
           { dealerId, ...pipelineResult },
           'manager: enrichment pipeline complete',
         );
+
+        // Emit scrape_complete WebSocket event
+        emitScrapeComplete(dealer.id, dealer.name, result.listings.length);
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         result.errors.push(`Pipeline error: ${msg}`);

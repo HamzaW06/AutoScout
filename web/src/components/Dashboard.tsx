@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   fetchListings,
@@ -9,6 +9,7 @@ import {
 } from '../api';
 import { DealBadge } from './DealBadge';
 import { FilterBar, type Filters } from './FilterBar';
+import { useWebSocket } from '../hooks/useWebSocket';
 
 function fmt$(n: number | null): string {
   if (n == null) return '—';
@@ -61,6 +62,16 @@ const RATING_PILL_COLORS: Record<string, string> = {
 
 const PAGE_SIZE = 50;
 
+interface Toast {
+  id: number;
+  alertType: string;
+  year: number;
+  make: string;
+  model: string;
+  price: number;
+  deal_score: number;
+}
+
 const emptyFilters: Filters = {
   make: '',
   model: '',
@@ -81,6 +92,42 @@ export function Dashboard() {
   const [sortField, setSortField] = useState<SortField>('deal_score');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
   const [filters, setFilters] = useState<Filters>(emptyFilters);
+  const [toasts, setToasts] = useState<Toast[]>([]);
+  const [newListingCount, setNewListingCount] = useState(0);
+  const toastIdRef = useRef(0);
+
+  const { on } = useWebSocket();
+
+  // Listen for deal_alert events — show toast notifications
+  useEffect(() => {
+    const unsubAlert = on('deal_alert', (data) => {
+      const d = data as { alertType: string; year: number; make: string; model: string; price: number; deal_score: number };
+      const id = ++toastIdRef.current;
+      const toast: Toast = {
+        id,
+        alertType: d.alertType,
+        year: d.year,
+        make: d.make,
+        model: d.model,
+        price: d.price,
+        deal_score: d.deal_score,
+      };
+      setToasts((prev) => [...prev, toast]);
+      // Auto-dismiss after 8 seconds
+      setTimeout(() => {
+        setToasts((prev) => prev.filter((t) => t.id !== id));
+      }, 8000);
+    });
+    return unsubAlert;
+  }, [on]);
+
+  // Listen for new_listing events — increment counter
+  useEffect(() => {
+    const unsubListing = on('new_listing', () => {
+      setNewListingCount((c) => c + 1);
+    });
+    return unsubListing;
+  }, [on]);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -164,6 +211,52 @@ export function Dashboard() {
 
   return (
     <div className="flex flex-col h-full">
+      {/* Toast notifications — fixed top-right */}
+      <div className="fixed top-4 right-4 z-50 flex flex-col gap-2 pointer-events-none">
+        {toasts.map((toast) => (
+          <div
+            key={toast.id}
+            className={`pointer-events-auto flex items-start gap-3 px-4 py-3 rounded-lg shadow-lg border text-sm max-w-xs transition-all ${
+              toast.alertType === 'steal'
+                ? 'bg-emerald-900/90 border-emerald-500/40 text-emerald-100'
+                : 'bg-blue-900/90 border-blue-500/40 text-blue-100'
+            }`}
+          >
+            <span className="text-base mt-0.5">{toast.alertType === 'steal' ? '🔥' : '⭐'}</span>
+            <div className="flex-1 min-w-0">
+              <div className="font-semibold">
+                {toast.alertType === 'steal' ? 'Steal Alert!' : 'Great Deal!'}
+              </div>
+              <div className="truncate text-xs opacity-90">
+                {toast.year} {toast.make} {toast.model} — ${toast.price.toLocaleString()}
+              </div>
+              <div className="text-xs opacity-75">{toast.deal_score}% below market</div>
+            </div>
+            <button
+              className="opacity-60 hover:opacity-100 transition-opacity text-base leading-none bg-transparent border-none cursor-pointer"
+              onClick={() => setToasts((prev) => prev.filter((t) => t.id !== toast.id))}
+            >
+              ×
+            </button>
+          </div>
+        ))}
+      </div>
+
+      {/* New listings banner */}
+      {newListingCount > 0 && (
+        <div className="flex items-center justify-center gap-3 px-4 py-2 bg-[var(--gold)]/10 border-b border-[var(--gold)]/30 text-sm">
+          <span className="text-[var(--gold)] font-medium">
+            {newListingCount} new listing{newListingCount !== 1 ? 's' : ''} available
+          </span>
+          <button
+            className="px-2.5 py-0.5 rounded text-xs font-medium bg-[var(--gold)]/20 text-[var(--gold)] hover:bg-[var(--gold)]/30 transition-colors cursor-pointer border-none"
+            onClick={() => { setNewListingCount(0); loadData(); }}
+          >
+            Refresh
+          </button>
+        </div>
+      )}
+
       {/* Stats bar */}
       <div className="flex items-center gap-4 px-4 py-3 border-b border-[var(--border)] bg-[var(--bg-surface)]">
         <div className="text-sm text-[var(--text-secondary)]">

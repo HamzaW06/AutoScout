@@ -4,6 +4,7 @@
 
 import { sendDiscordAlert } from '../notifications/discord.js';
 import { logger } from '../logger.js';
+import { emitAlert } from '../websocket.js';
 
 export type AlertType = 'steal' | 'great_deal' | 'price_drop';
 
@@ -58,5 +59,14 @@ export async function fireAlerts(input: AlertInput): Promise<void> {
     } catch (err) {
       logger.error(err, `Failed to send Discord alert for ${alert}`);
     }
+
+    // Emit deal_alert WebSocket event
+    emitAlert(alert, {
+      year: input.year,
+      make: input.make,
+      model: input.model,
+      price: input.price,
+      deal_score: input.deal_score,
+    });
   }
 }

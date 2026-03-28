@@ -42,6 +42,7 @@ import { getSafetyRating } from './safety-ratings.js';
 import { NHTSACache } from './cache.js';
 import { fireAlerts } from './alert-check.js';
 import { logger } from '../logger.js';
+import { emitNewListing } from '../websocket.js';
 
 // ── NHTSA cache (module-level singleton) ──────────────────────────
 
@@ -602,6 +603,16 @@ export async function processListings(
           // Record initial price in history
           insertPriceHistory(listingId, askingPrice, source);
           result.inserted++;
+          // Emit new_listing WebSocket event
+          emitNewListing({
+            id: fixed.id as string || '',
+            year: fixed.year as number || 0,
+            make: fixed.make as string || '',
+            model: fixed.model as string || '',
+            price: askingPrice || 0,
+            value_rating: fixed.value_rating as string || '',
+            deal_score: fixed.deal_score as number || 0,
+          });
         }
 
         // Queue alert check (executed after transaction commits)

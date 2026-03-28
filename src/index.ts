@@ -1,8 +1,10 @@
+import { createServer as createHttpServer } from 'http';
 import { config } from './config.js';
 import { logger } from './logger.js';
 import { initDatabase } from './db/schema.js';
-import { createServer, startServer } from './server.js';
+import { createServer } from './server.js';
 import { startScheduler } from './scheduler.js';
+import { initWebSocket } from './websocket.js';
 
 async function main() {
   logger.info('AutoScout starting...');
@@ -11,9 +13,17 @@ async function main() {
   const db = await initDatabase();
   logger.info('Database initialized');
 
-  // Start Express server
+  // Create Express app and wrap in HTTP server
   const app = createServer();
-  startServer(app);
+  const httpServer = createHttpServer(app);
+
+  // Attach WebSocket server to the HTTP server
+  initWebSocket(httpServer);
+
+  // Start listening
+  httpServer.listen(config.port, () => {
+    logger.info(`API server listening on http://localhost:${config.port}`);
+  });
 
   // Start cron scheduler
   startScheduler();

@@ -1,4 +1,5 @@
 import { logger } from '../logger.js';
+import { emitDealerHealthChange } from '../websocket.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -143,9 +144,8 @@ export class DealerHealthTracker {
 // ---------------------------------------------------------------------------
 
 /**
- * Placeholder for WebSocket integration.
- * Logs at info level when a dealer's health state changes.
- * WebSocket emission will be wired up in a later task.
+ * Emits a dealer_health_change WebSocket event when the health state changes,
+ * and logs the transition.
  */
 export function emitIfStateChanged(
   dealerId: number,
@@ -158,5 +158,6 @@ export function emitIfStateChanged(
       { dealerId, dealerName, oldState, newState },
       `Dealer health state changed: ${dealerName} (${dealerId}) ${oldState} → ${newState}`,
     );
+    emitDealerHealthChange(dealerId, dealerName, oldState, newState);
   }
 }
