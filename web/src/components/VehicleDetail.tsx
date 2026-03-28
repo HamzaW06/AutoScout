@@ -4,6 +4,7 @@ import { fetchListing, toggleFavorite, type Listing } from '../api';
 import { DealBadge } from './DealBadge';
 import { ScamAlert } from './ScamAlert';
 import { ContactButton } from './ContactButton';
+import { EnrichmentStatus } from './EnrichmentStatus';
 
 function fmt$(n: number | null): string {
   if (n == null) return '—';
@@ -51,6 +52,17 @@ export function VehicleDetail() {
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
   }, [id]);
+
+  async function handleReAnalyze() {
+    if (!listing) return;
+    try {
+      await fetch(`/api/listings/${listing.id}/analyze`, { method: 'POST' });
+      const updated = await fetchListing(listing.id);
+      setListing(updated);
+    } catch (err) {
+      console.error('Re-analyze failed:', err);
+    }
+  }
 
   async function handleToggleFavorite() {
     if (!listing) return;
@@ -245,6 +257,9 @@ export function VehicleDetail() {
           }
         />
       </div>
+
+      {/* Enrichment status */}
+      <EnrichmentStatus listing={listing} onReAnalyze={handleReAnalyze} />
 
       {/* Risk factors */}
       {riskFactors.length > 0 && (

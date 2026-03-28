@@ -10,6 +10,8 @@ import { AuditDashboard } from './components/AuditDashboard';
 import DealerOnboarding from './components/DealerOnboarding';
 import SettingsPanel from './components/SettingsPanel';
 import { ScraperHealth } from './components/ScraperHealth';
+import { ExportTools } from './components/ExportTools';
+import { TransactionTracker } from './components/TransactionTracker';
 
 function AppContent() {
   const navigate = useNavigate();
@@ -79,6 +81,18 @@ function AppContent() {
             onClick={() => navigate('/scraper-health')}
           />
           <NavIcon
+            label="Export"
+            icon="\u21a5"
+            active={path === '/export'}
+            onClick={() => navigate('/export')}
+          />
+          <NavIcon
+            label="Transactions"
+            icon="\u2630"
+            active={path === '/transactions'}
+            onClick={() => navigate('/transactions')}
+          />
+          <NavIcon
             label="Settings"
             icon="\u2699"
             active={path === '/settings'}
@@ -122,6 +136,8 @@ function AppContent() {
             <Route path="/dealers/onboard" element={<DealerOnboarding />} />
             <Route path="/settings" element={<SettingsPanel />} />
             <Route path="/scraper-health" element={<ScraperHealth />} />
+            <Route path="/export" element={<ExportTools />} />
+            <Route path="/transactions" element={<TransactionTracker />} />
           </Routes>
         </main>
       </div>
