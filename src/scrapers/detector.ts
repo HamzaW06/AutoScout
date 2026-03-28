@@ -33,6 +33,17 @@ const PLATFORM_SIGNATURES: Record<string, {
   'v12_software':   { patterns: ['v12software'], inventoryPath: '/vehicles' },
   'promax':         { patterns: ['promax'], inventoryPath: '/inventory' },
   'carsforsale':    { patterns: ['carsforsale.com'], inventoryPath: null },
+
+  // Expanded platform set (Task 5)
+  'dealeron':           { patterns: ['dealeron.com', 'cdn.dealeron.com', 'dealeron'], inventoryPath: '/used-vehicles' },
+  'dealer_eprocess':    { patterns: ['eprocess', 'dealereprocess.com', 'ep-widget'], inventoryPath: '/inventory/used' },
+  'dealer_center_pro':  { patterns: ['dealercenterpro', 'dcpweb.com', 'dealercenter'], inventoryPath: '/inventory' },
+  'vericom':            { patterns: ['vericom.net', 'vericomvdp'], inventoryPath: '/inventory' },
+  'homenet_iol':        { patterns: ['homenetiol', 'homenet.com', 'iol.io'], inventoryPath: '/all-inventory' },
+  'lotlinx':            { patterns: ['lotlinx.com', 'lotlinx'], inventoryPath: '/inventory' },
+  'wordpress_dealer':   { patterns: ['wp-content', 'wp-json', 'wordpress'], inventoryPath: '/inventory' },
+  'shopify_dealer':     { patterns: ['cdn.shopify.com', 'shopify.theme', 'myshopify.com'], inventoryPath: '/collections' },
+  'wix_dealer':         { patterns: ['wix.com', 'wixsite.com', 'static.wixstatic.com'], inventoryPath: '/inventory' },
 };
 
 // ── Detection logic ──────────────────────────────────────────────
