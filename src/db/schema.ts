@@ -273,6 +273,13 @@ CREATE TABLE IF NOT EXISTS nhtsa_cache (
   fetched_at TEXT DEFAULT (datetime('now')),
   expires_at TEXT NOT NULL
 );
+
+-- USER_SETTINGS table
+CREATE TABLE IF NOT EXISTS user_settings (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL,
+  updated_at TEXT DEFAULT (datetime('now'))
+);
 `;
 
 const INDEXES_SQL = `

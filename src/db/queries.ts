@@ -722,6 +722,55 @@ export function insertTransaction(
 }
 
 // ---------------------------------------------------------------------------
+// Transactions (read)
+// ---------------------------------------------------------------------------
+
+/** SELECT recent transactions ordered by most recent first. */
+export function getTransactions(limit = 50): Array<Record<string, unknown>> {
+  const db = getDb();
+  return db.all<Record<string, unknown>>(
+    'SELECT * FROM transactions ORDER BY visited_at DESC LIMIT ?',
+    [limit],
+  );
+}
+
+// ---------------------------------------------------------------------------
+// User Settings
+// ---------------------------------------------------------------------------
+
+/** SELECT the value for a single setting key. Returns null if not found. */
+export function getSetting(key: string): string | null {
+  const db = getDb();
+  const row = db.get<{ value: string }>(
+    'SELECT value FROM user_settings WHERE key = ?',
+    [key],
+  );
+  return row?.value ?? null;
+}
+
+/** INSERT OR REPLACE a setting key/value pair. */
+export function setSetting(key: string, value: string): void {
+  const db = getDb();
+  db.run(
+    "INSERT OR REPLACE INTO user_settings (key, value, updated_at) VALUES (?, ?, datetime('now'))",
+    [key, value],
+  );
+}
+
+/** SELECT all settings as a key→value object. */
+export function getAllSettings(): Record<string, string> {
+  const db = getDb();
+  const rows = db.all<{ key: string; value: string }>(
+    'SELECT key, value FROM user_settings',
+  );
+  const result: Record<string, string> = {};
+  for (const row of rows) {
+    result[row.key] = row.value;
+  }
+  return result;
+}
+
+// ---------------------------------------------------------------------------
 // Dealer Health
 // ---------------------------------------------------------------------------
 
