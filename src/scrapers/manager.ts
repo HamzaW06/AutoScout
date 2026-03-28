@@ -128,6 +128,7 @@ export class ScraperManager {
       const healthTracker = new DealerHealthTracker();
       const currentHealth = getDealerHealth(dealer.id);
       const previousState = currentHealth?.health_state ?? 'healthy';
+      const isAccessBlocked = isAccessBlockedResult(result);
 
       if (result.success && result.listings.length > 0) {
         // Check for sudden drop in listing count
@@ -146,6 +147,21 @@ export class ScraperManager {
         }
         updateDealerHealth(dealer.id, 'healthy', 0, dealer.scraper_type ?? 'platform', result.listings.length);
         emitIfStateChanged(dealer.id, dealer.name, previousState, 'healthy');
+      } else if (isAccessBlocked) {
+        // Do not punish dealer health for anti-bot/WAF blocks from the target site.
+        const blockedFailures = Math.max(0, currentHealth?.consecutive_failures ?? 0);
+        updateDealerHealth(
+          dealer.id,
+          'degraded',
+          blockedFailures,
+          currentHealth?.last_tier_used ?? 'unknown',
+          currentHealth?.last_listing_count ?? 0,
+        );
+        emitIfStateChanged(dealer.id, dealer.name, previousState, 'degraded');
+        logger.warn(
+          { dealerId: dealer.id, dealer: dealer.name, errors: result.errors },
+          'manager: dealer appears bot-blocked (403/WAF); skipping dead-state escalation',
+        );
       } else {
         const failures = (currentHealth?.consecutive_failures ?? 0) + 1;
         const state = healthTracker.getState({
@@ -219,7 +235,9 @@ export class ScraperManager {
     });
 
     // Update reliability tracking
-    updateDealerReliability(dealer.id, result.success);
+    if (!isAccessBlockedResult(result)) {
+      updateDealerReliability(dealer.id, result.success);
+    }
 
     return { ...result, duration_ms: durationMs };
   }
@@ -506,6 +524,26 @@ function updateDealerReliability(dealerId: number, success: boolean): void {
 
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isAccessBlockedMessage(message: string): boolean {
+  const m = message.toLowerCase();
+  const patterns = [
+    'http 403',
+    'forbidden',
+    'access denied',
+    'captcha',
+    'cloudflare',
+    'bot',
+    'request blocked',
+    'temporarily unavailable',
+  ];
+  return patterns.some((p) => m.includes(p));
+}
+
+function isAccessBlockedResult(result: ScraperResult): boolean {
+  if (!result.errors || result.errors.length === 0) return false;
+  return result.errors.some((err) => isAccessBlockedMessage(err));
 }
 
 function buildInventoryCandidates(primaryUrl: string): string[] {
