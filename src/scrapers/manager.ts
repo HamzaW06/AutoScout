@@ -14,7 +14,10 @@ import {
   insertScrapeLog,
   getRecentScrapeResults,
   getDealer,
+  updateDealerHealth,
+  getDealerHealth,
 } from '../db/queries.js';
+import { DealerHealthTracker, emitIfStateChanged } from './health.js';
 import { processListings } from '../enrichment/pipeline.js';
 import type { BaseScraper, ScraperResult } from './base.js';
 import type { DealerRow, ScrapeLogRow } from '../db/queries.js';
@@ -93,6 +96,50 @@ export class ScraperManager {
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       result = { success: false, listings: [], errors: [msg], duration_ms: Date.now() - start };
+    }
+
+    // Update dealer health state machine
+    {
+      const healthTracker = new DealerHealthTracker();
+      const currentHealth = getDealerHealth(dealer.id);
+      const previousState = currentHealth?.health_state ?? 'healthy';
+
+      if (result.success && result.listings.length > 0) {
+        // Check for sudden drop in listing count
+        if (
+          currentHealth &&
+          healthTracker.detectSuddenDrop(currentHealth.last_listing_count, result.listings.length)
+        ) {
+          logger.warn(
+            {
+              dealerId: dealer.id,
+              previousCount: currentHealth.last_listing_count,
+              currentCount: result.listings.length,
+            },
+            'Sudden listing count drop detected — possible site redesign',
+          );
+        }
+        updateDealerHealth(dealer.id, 'healthy', 0, dealer.scraper_type ?? 'platform', result.listings.length);
+        emitIfStateChanged(dealer.id, dealer.name, previousState, 'healthy');
+      } else {
+        const failures = (currentHealth?.consecutive_failures ?? 0) + 1;
+        const state = healthTracker.getState({
+          consecutiveFailures: failures,
+          lastSuccessAt: currentHealth?.last_success_at ?? null,
+        });
+        updateDealerHealth(
+          dealer.id,
+          state,
+          failures,
+          currentHealth?.last_tier_used ?? 'unknown',
+          currentHealth?.last_listing_count ?? 0,
+        );
+        emitIfStateChanged(dealer.id, dealer.name, previousState, state);
+
+        if (state === 'dead') {
+          logger.error({ dealerId: dealer.id, name: dealer.name }, 'Dealer marked as DEAD — alerting user');
+        }
+      }
     }
 
     // Process results through enrichment pipeline
