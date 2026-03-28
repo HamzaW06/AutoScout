@@ -6,7 +6,7 @@ interface EnrichedListing extends Listing {
   recall_count?: number | null;
   complaint_count?: number | null;
   safety_rating_overall?: number | null;
-  repair_forecast?: string | null;
+  repair_forecast: string | null;
 }
 
 type StatusState = 'done' | 'partial' | 'missing';
