@@ -98,3 +98,48 @@ export async function updateNotes(id: string, notes: string): Promise<void> {
     body: JSON.stringify({ notes }),
   });
 }
+
+// ---------------------------------------------------------------------------
+// Dealers
+// ---------------------------------------------------------------------------
+
+export interface Dealer {
+  id: number;
+  name: string;
+  website_url: string | null;
+  platform: string | null;
+  city: string | null;
+  state: string | null;
+  phone: string | null;
+  google_rating: number | null;
+  google_review_count: number | null;
+  dealer_type: string | null;
+  typical_inventory_size: number | null;
+  is_active: number;
+  last_scraped: string | null;
+  scrape_success_rate: number | null;
+  scrape_priority: string | null;
+}
+
+export async function fetchDealers(): Promise<Dealer[]> {
+  return request<Dealer[]>('/dealers');
+}
+
+export async function createDealer(
+  data: Partial<Dealer>,
+): Promise<{ id: number }> {
+  return request<{ id: number }>('/dealers', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateDealer(
+  id: number,
+  data: Partial<Dealer>,
+): Promise<void> {
+  await request(`/dealers/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  });
+}
