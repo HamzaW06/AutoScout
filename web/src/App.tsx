@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
+import { useState } from 'react';
 import { Dashboard } from './components/Dashboard';
 import { VehicleDetail } from './components/VehicleDetail';
 import { DealerManager } from './components/DealerManager';
@@ -13,116 +14,135 @@ import { ScraperHealth } from './components/ScraperHealth';
 import { ExportTools } from './components/ExportTools';
 import { TransactionTracker } from './components/TransactionTracker';
 
+interface NavItem {
+  label: string;
+  path: string;
+  icon: string;
+  section?: string;
+}
+
+const NAV_ITEMS: NavItem[] = [
+  { label: 'Dashboard', path: '/', icon: '🏠', section: 'main' },
+  { label: 'Dealers', path: '/dealers', icon: '🏪', section: 'main' },
+  { label: 'Add Dealers', path: '/dealers/onboard', icon: '➕', section: 'main' },
+  { label: 'Analytics', path: '/analytics', icon: '📊', section: 'insights' },
+  { label: 'Map View', path: '/map', icon: '🗺', section: 'insights' },
+  { label: 'Compare', path: '/compare', icon: '⚖', section: 'insights' },
+  { label: 'Scraper Health', path: '/scraper-health', icon: '💚', section: 'system' },
+  { label: 'Audit', path: '/audit', icon: '🔍', section: 'system' },
+  { label: 'Export', path: '/export', icon: '📥', section: 'tools' },
+  { label: 'Transactions', path: '/transactions', icon: '📋', section: 'tools' },
+  { label: 'Settings', path: '/settings', icon: '⚙', section: 'tools' },
+];
+
+const SECTION_LABELS: Record<string, string> = {
+  main: 'MAIN',
+  insights: 'INSIGHTS',
+  system: 'SYSTEM',
+  tools: 'TOOLS',
+};
+
 function AppContent() {
   const navigate = useNavigate();
   const location = useLocation();
   const path = location.pathname;
+  const [collapsed, setCollapsed] = useState(false);
+
+  function isActive(item: NavItem) {
+    if (item.path === '/') return path === '/' || path.startsWith('/vehicle');
+    return path.startsWith(item.path);
+  }
+
+  // Group nav items by section
+  const sections = NAV_ITEMS.reduce<Record<string, NavItem[]>>((acc, item) => {
+    const section = item.section || 'main';
+    if (!acc[section]) acc[section] = [];
+    acc[section].push(item);
+    return acc;
+  }, {});
 
   return (
     <div className="flex h-screen bg-[var(--bg-base)]">
-      {/* Sidebar - collapsed */}
-      <aside className="w-12 flex-shrink-0 border-r border-[var(--border)] bg-[var(--bg-surface)] flex flex-col items-center py-4 gap-4">
-        {/* Logo */}
-        <div
-          className="w-8 h-8 rounded flex items-center justify-center bg-[var(--gold)]/10 text-[var(--gold)] font-bold text-sm select-none cursor-pointer"
-          onClick={() => navigate('/')}
-        >
-          AS
+      {/* Sidebar */}
+      <aside
+        className={`${collapsed ? 'w-14' : 'w-52'} flex-shrink-0 border-r border-[var(--border)] bg-[var(--bg-surface)] flex flex-col transition-all duration-200`}
+      >
+        {/* Logo / Brand */}
+        <div className="flex items-center gap-2 px-3 py-4 border-b border-[var(--border)]">
+          <div
+            className="w-8 h-8 rounded-lg flex items-center justify-center bg-[var(--gold)]/15 text-[var(--gold)] font-bold text-sm select-none cursor-pointer flex-shrink-0"
+            onClick={() => navigate('/')}
+          >
+            AS
+          </div>
+          {!collapsed && (
+            <div className="flex flex-col min-w-0" onClick={() => navigate('/')} style={{ cursor: 'pointer' }}>
+              <span className="text-sm font-bold text-[var(--text-primary)] leading-tight">
+                Auto<span className="text-[var(--gold)]">Scout</span>
+              </span>
+              <span className="text-[10px] text-[var(--text-muted)] leading-tight">
+                Used car intelligence
+              </span>
+            </div>
+          )}
+          <div className="flex-1" />
+          <button
+            onClick={() => setCollapsed(!collapsed)}
+            className="w-6 h-6 rounded flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)] transition-colors cursor-pointer bg-transparent border-none text-xs"
+            title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          >
+            {collapsed ? '▶' : '◀'}
+          </button>
         </div>
 
-        {/* Nav icons */}
-        <nav className="flex flex-col items-center gap-3 mt-4">
-          <NavIcon
-            label="Dashboard"
-            icon="\u229e"
-            active={path === '/' || path.startsWith('/vehicle')}
-            onClick={() => navigate('/')}
-          />
-          <NavIcon
-            label="Dealers"
-            icon="\u2302"
-            active={path === '/dealers'}
-            onClick={() => navigate('/dealers')}
-          />
-          <NavIcon
-            label="Analytics"
-            icon="\u2261"
-            active={path === '/analytics'}
-            onClick={() => navigate('/analytics')}
-          />
-          <NavIcon
-            label="Map"
-            icon="\u2316"
-            active={path === '/map'}
-            onClick={() => navigate('/map')}
-          />
-          <NavIcon
-            label="Compare"
-            icon="\u2696"
-            active={path === '/compare'}
-            onClick={() => navigate('/compare')}
-          />
-          <NavIcon
-            label="Audit"
-            icon="\u2318"
-            active={path === '/audit'}
-            onClick={() => navigate('/audit')}
-          />
-          <NavIcon
-            label="Add Dealers"
-            icon="\u002b"
-            active={path === '/dealers/onboard'}
-            onClick={() => navigate('/dealers/onboard')}
-          />
-          <NavIcon
-            label="Scraper Health"
-            icon="\u2692"
-            active={path === '/scraper-health'}
-            onClick={() => navigate('/scraper-health')}
-          />
-          <NavIcon
-            label="Export"
-            icon="\u21a5"
-            active={path === '/export'}
-            onClick={() => navigate('/export')}
-          />
-          <NavIcon
-            label="Transactions"
-            icon="\u2630"
-            active={path === '/transactions'}
-            onClick={() => navigate('/transactions')}
-          />
-          <NavIcon
-            label="Settings"
-            icon="\u2699"
-            active={path === '/settings'}
-            onClick={() => navigate('/settings')}
-          />
+        {/* Navigation */}
+        <nav className="flex-1 overflow-y-auto py-2 px-2">
+          {Object.entries(sections).map(([section, items]) => (
+            <div key={section} className="mb-3">
+              {!collapsed && (
+                <div className="px-2 py-1.5 text-[10px] font-semibold tracking-widest text-[var(--text-muted)] uppercase">
+                  {SECTION_LABELS[section] || section}
+                </div>
+              )}
+              {collapsed && <div className="border-b border-[var(--border)] mx-1 mb-2" />}
+              {items.map((item) => {
+                const active = isActive(item);
+                return (
+                  <button
+                    key={item.path}
+                    onClick={() => navigate(item.path)}
+                    title={collapsed ? item.label : undefined}
+                    className={`w-full flex items-center gap-2.5 rounded-md text-left transition-colors cursor-pointer border-none mb-0.5 ${
+                      collapsed ? 'px-2 py-2 justify-center' : 'px-2.5 py-2'
+                    } ${
+                      active
+                        ? 'bg-[var(--gold)]/10 text-[var(--gold)]'
+                        : 'bg-transparent text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)]'
+                    }`}
+                  >
+                    <span className="text-sm flex-shrink-0 w-5 text-center">{item.icon}</span>
+                    {!collapsed && (
+                      <span className={`text-[13px] truncate ${active ? 'font-semibold' : 'font-medium'}`}>
+                        {item.label}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          ))}
         </nav>
 
-        <div className="flex-1" />
-
-        <div className="w-6 h-6 rounded-full bg-[var(--bg-elevated)] border border-[var(--border)]" />
+        {/* Sidebar footer */}
+        {!collapsed && (
+          <div className="px-3 py-3 border-t border-[var(--border)] text-[10px] text-[var(--text-muted)]">
+            AutoScout v0.1.0
+          </div>
+        )}
       </aside>
 
       {/* Main content area */}
       <div className="flex-1 flex flex-col min-w-0">
-        {/* Top bar */}
-        <header className="h-11 flex-shrink-0 flex items-center justify-between px-4 border-b border-[var(--border)] bg-[var(--bg-surface)]">
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold text-[var(--text-primary)]">
-              Auto
-            </span>
-            <span className="text-sm font-semibold text-[var(--gold)]">
-              Scout
-            </span>
-          </div>
-          <div className="text-xs text-[var(--text-muted)]">
-            Used car intelligence
-          </div>
-        </header>
-
-        {/* Routes */}
         <main className="flex-1 overflow-hidden">
           <Routes>
             <Route path="/" element={<Dashboard />} />
@@ -150,32 +170,6 @@ function App() {
     <BrowserRouter>
       <AppContent />
     </BrowserRouter>
-  );
-}
-
-function NavIcon({
-  label,
-  icon,
-  active = false,
-  onClick,
-}: {
-  label: string;
-  icon: string;
-  active?: boolean;
-  onClick?: () => void;
-}) {
-  return (
-    <button
-      title={label}
-      onClick={onClick}
-      className={`w-8 h-8 rounded flex items-center justify-center text-sm cursor-pointer bg-transparent border-none transition-colors ${
-        active
-          ? 'text-[var(--gold)] bg-[var(--gold)]/10'
-          : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
-      }`}
-    >
-      {icon}
-    </button>
   );
 }
 
