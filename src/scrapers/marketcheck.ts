@@ -52,6 +52,8 @@ export interface NormalizedListing {
   seller_lng: number | null;
   photos: string | null; // JSON array
   description: string | null;
+  scrape_confidence: number;
+  scrape_tier?: string;
 }
 
 export interface MarketCheckSearchResult {
@@ -248,6 +250,8 @@ function normalizeListing(raw: RawMarketCheckListing): NormalizedListing {
     seller_lng: dealer.longitude ?? null,
     photos: media.photo_links ? JSON.stringify(media.photo_links) : null,
     description: extra.seller_comment ?? null,
+    scrape_confidence: 0.95,
+    scrape_tier: 'api_discovery',
   };
 }
 

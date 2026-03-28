@@ -194,6 +194,8 @@ export class GenericAiScraper extends BaseScraper {
           seller_location: null,
           photos: photos.length > 0 ? JSON.stringify(photos) : null,
           description: vehicle.description ?? null,
+          scrape_confidence: 0.7,
+          scrape_tier: 'ai_extraction',
         });
       }
 

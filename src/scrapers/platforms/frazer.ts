@@ -226,6 +226,8 @@ export class FrazerScraper extends BaseScraper {
       seller_location: null,
       photos: photos.length > 0 ? JSON.stringify(photos) : null,
       description: null,
+      scrape_confidence: 0.95,
+      scrape_tier: 'platform',
     };
   }
 
@@ -354,6 +356,8 @@ export class FrazerScraper extends BaseScraper {
       seller_location: null,
       photos: photos.length > 0 ? JSON.stringify(photos) : null,
       description: null,
+      scrape_confidence: 0.95,
+      scrape_tier: 'platform',
     };
   }
 }

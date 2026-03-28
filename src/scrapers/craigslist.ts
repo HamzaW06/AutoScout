@@ -111,6 +111,8 @@ export class CraigslistScraper extends BaseScraper {
           seller_location: parsed.location ?? null,
           photos: null,
           description: item.description || null,
+          scrape_confidence: 0.95,
+          scrape_tier: 'platform',
         };
 
         listings.push(listing);

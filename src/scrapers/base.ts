@@ -23,6 +23,8 @@ export interface ScrapedListing {
   seller_location: string | null;
   photos: string | null;        // JSON array of URLs
   description: string | null;
+  scrape_confidence: number; // 0.0 to 1.0 — how confident the scraper is in the data
+  scrape_tier?: string;      // 'platform' | 'structured_data' | 'api_discovery' | 'ai_extraction'
 }
 
 export interface ScraperResult {

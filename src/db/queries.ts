@@ -74,6 +74,8 @@ export interface ListingRow {
   data_completeness: number;
   last_audit: string | null;
   audit_flags: string | null;
+  scrape_confidence: number;
+  scrape_tier: string | null;
   created_at: string;
   updated_at: string;
 }

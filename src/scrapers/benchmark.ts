@@ -212,6 +212,8 @@ export class BenchmarkScraper extends BaseScraper {
           seller_location: null,
           photos: photos.length > 0 ? JSON.stringify(photos) : null,
           description: null,
+          scrape_confidence: 0.95,
+          scrape_tier: 'benchmark',
         });
       }
     } catch (err) {
@@ -401,6 +403,8 @@ export class BenchmarkScraper extends BaseScraper {
             seller_location: null,
             photos: photos.length > 0 ? JSON.stringify(photos) : null,
             description: null,
+            scrape_confidence: 0.95,
+            scrape_tier: 'benchmark',
           });
         }
       } else {
@@ -510,6 +514,8 @@ export class BenchmarkScraper extends BaseScraper {
             seller_location: null,
             photos: photos.length > 0 ? JSON.stringify(photos) : null,
             description: null,
+            scrape_confidence: 0.95,
+            scrape_tier: 'benchmark',
           });
         }
       } catch {

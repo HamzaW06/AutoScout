@@ -70,6 +70,8 @@ CREATE TABLE IF NOT EXISTS listings (
   data_completeness REAL DEFAULT 0,
   last_audit TEXT,
   audit_flags TEXT,
+  scrape_confidence REAL DEFAULT 0.5,
+  scrape_tier TEXT DEFAULT 'unknown',
   created_at TEXT DEFAULT (datetime('now')),
   updated_at TEXT DEFAULT (datetime('now'))
 );
