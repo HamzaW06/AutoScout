@@ -7,6 +7,7 @@ import { getActiveDealers, getDealersNeedingAlert } from './db/queries.js';
 import { sendDiscordAlert } from './notifications/discord.js';
 import { createConfiguredScraperManager } from './scrapers/registry.js';
 import { resetDailyBudget } from './scrapers/marketcheck.js';
+import { syncMarketCheckListings } from './scrapers/marketcheck-sync.js';
 
 export function startScheduler(): void {
   logger.info('Starting scheduler...');
@@ -57,6 +58,21 @@ export function startScheduler(): void {
   cron.schedule('0 0 * * *', () => {
     logger.info('Daily API budget reset');
     resetDailyBudget();
+  });
+
+  // MarketCheck inventory sync: every 2 hours at minute 15
+  cron.schedule('15 */2 * * *', async () => {
+    logger.info('Running MarketCheck inventory sync (every 2 hours)...');
+    try {
+      const result = await syncMarketCheckListings({
+        maxConfigs: 6,
+        maxPagesPerConfig: 2,
+        rowsPerPage: 50,
+      });
+      logger.info({ result }, 'MarketCheck inventory sync complete');
+    } catch (err) {
+      logger.error(err, 'MarketCheck inventory sync failed');
+    }
   });
 
   // ── Tiered scrape schedules ───────────────────────────────────────
@@ -149,5 +165,5 @@ export function startScheduler(): void {
     }
   });
 
-  logger.info('Scheduler started with 9 cron jobs');
+  logger.info('Scheduler started with 10 cron jobs');
 }

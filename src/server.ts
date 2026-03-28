@@ -37,6 +37,8 @@ import { createConfiguredScraperManager } from './scrapers/registry.js';
 import { getRecalls } from './enrichment/recalls.js';
 import { getComplaints } from './enrichment/complaints.js';
 import { processListings } from './enrichment/pipeline.js';
+import { syncMarketCheckListings } from './scrapers/marketcheck-sync.js';
+import { getDailyCallCount, getDailyBudgetLimit } from './scrapers/marketcheck.js';
 
 // ---------------------------------------------------------------------------
 // Input validation helpers
@@ -833,6 +835,40 @@ export function createServer(): express.Express {
         } catch (err) {
           logger.error(err, 'Background full scrape failed');
         }
+      });
+    }),
+  );
+
+  /** POST /api/marketcheck/sync – ingest MarketCheck used-car inventory into dashboard */
+  app.post(
+    '/api/marketcheck/sync',
+    asyncHandler(async (req, res) => {
+      const maxPagesPerConfig = parseNumeric(req.body?.maxPagesPerConfig, 1, 20) ?? 4;
+      const rowsPerPage = parseNumeric(req.body?.rowsPerPage, 1, 50) ?? 50;
+      const maxConfigs = parseNumeric(req.body?.maxConfigs, 1, 50) ?? 8;
+      const radius = parseNumeric(req.body?.radius, 1, 500) ?? 50;
+
+      const syncResult = await syncMarketCheckListings({
+        maxConfigs,
+        maxPagesPerConfig,
+        rowsPerPage,
+        radius,
+      });
+
+      res.json(syncResult);
+    }),
+  );
+
+  /** GET /api/marketcheck/status – daily MarketCheck usage stats */
+  app.get(
+    '/api/marketcheck/status',
+    asyncHandler(async (_req, res) => {
+      const used = getDailyCallCount();
+      const budget = getDailyBudgetLimit();
+      res.json({
+        used,
+        budget,
+        remaining: Math.max(0, budget - used),
       });
     }),
   );

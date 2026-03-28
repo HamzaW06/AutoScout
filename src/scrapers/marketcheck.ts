@@ -416,3 +416,8 @@ export function resetDailyBudget(): void {
 export function getDailyCallCount(): number {
   return dailyCallCount;
 }
+
+/** Return configured daily API budget ceiling for monitoring/sync logic. */
+export function getDailyBudgetLimit(): number {
+  return DAILY_BUDGET;
+}
