@@ -1,3 +1,5 @@
+import path from 'path';
+import { fileURLToPath } from 'url';
 import express, { Request, Response, NextFunction } from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
@@ -241,6 +243,11 @@ export function createServer(): express.Express {
     }),
   );
   app.use(express.json({ limit: '1mb' }));
+
+  // ----- Serve frontend static files -----
+  const __dirname = path.dirname(fileURLToPath(import.meta.url));
+  const webDist = path.join(__dirname, '..', 'web', 'dist');
+  app.use(express.static(webDist));
 
   // ==========================================================================
   // Listings
@@ -640,19 +647,23 @@ export function createServer(): express.Express {
         let inserted = 0;
         let insertFailed = 0;
 
-        const persisted = results.map((result, index) => {
-          const input = dealers[index];
+        const persisted = results.map((result) => {
+          const input = dealers.find(
+            (d) => d.websiteUrl === result.websiteUrl && d.dealerName === result.dealerName,
+          );
+          const dealerName = input?.dealerName ?? result.dealerName;
+          const websiteUrl = input?.websiteUrl ?? result.websiteUrl;
           let dealerId: number | null = null;
           let persistError: string | null = null;
 
           try {
             const platform = normalizePlatform(result.platform);
             const scraperType = scraperTypeForPlatform(platform);
-            const inventoryUrl = result.inventoryUrl || input.websiteUrl;
+            const inventoryUrl = result.inventoryUrl || websiteUrl;
 
             const dealerRecord: Record<string, unknown> = {
-              name: input.dealerName,
-              website_url: input.websiteUrl,
+              name: dealerName,
+              website_url: websiteUrl,
               inventory_url: inventoryUrl,
               platform: platform ?? null,
               scraper_type: scraperType,
@@ -660,8 +671,8 @@ export function createServer(): express.Express {
               scrape_priority: result.suggestedPriority,
             };
 
-            if (input.city) dealerRecord.city = input.city;
-            if (input.state) dealerRecord.state = input.state;
+            if (input?.city) dealerRecord.city = input.city;
+            if (input?.state) dealerRecord.state = input.state;
             if (result.dealerMeta.phone) dealerRecord.phone = result.dealerMeta.phone;
             if (result.dealerMeta.address) dealerRecord.address = result.dealerMeta.address;
 
@@ -672,11 +683,26 @@ export function createServer(): express.Express {
             persistError = err instanceof Error ? err.message : String(err);
           }
 
+          const combinedErrors = [...result.errors];
+          if (persistError) {
+            combinedErrors.push(`Persistence error: ${persistError}`);
+          }
+
           return {
             ...result,
+            dealerName,
+            websiteUrl,
             dealerId,
             persisted: dealerId != null,
             persistError,
+            // Keep backward-compatible keys expected by the onboarding UI.
+            name: dealerName,
+            url: websiteUrl,
+            status: result.success ? 'OK' : 'FAILED',
+            listings_found: result.listingsFound,
+            priority: result.suggestedPriority,
+            tier_used: result.tierUsed,
+            error: combinedErrors.length > 0 ? combinedErrors.join(' | ') : undefined,
           };
         });
 
@@ -1150,6 +1176,11 @@ export function createServer(): express.Express {
   app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
     logger.error(err, 'API error');
     res.status(500).json({ error: 'Internal server error' });
+  });
+
+  // ----- SPA fallback: serve index.html for all non-API routes -----
+  app.get('*', (_req, res) => {
+    res.sendFile(path.join(webDist, 'index.html'));
   });
 
   return app;

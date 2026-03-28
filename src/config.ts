@@ -9,6 +9,11 @@ function parseCsv(value: string | undefined): string[] {
     .filter((part) => part.length > 0);
 }
 
+function cleanEnvString(value: string | undefined): string {
+  if (!value) return '';
+  return value.trim().replace(/^"|"$/g, '');
+}
+
 export const config = {
   // Location
   userLat: parseFloat(process.env.USER_LAT || '29.5111'),
@@ -22,11 +27,11 @@ export const config = {
   mechanicLaborMultiplier: parseFloat(process.env.MECHANIC_LABOR_MULTIPLIER || '0.4'),
 
   // API Keys
-  marketCheckApiKey: process.env.MARKETCHECK_API_KEY || '',
-  googlePlacesApiKey: process.env.GOOGLE_PLACES_API_KEY || '',
-  googleAiApiKey: process.env.GOOGLE_AI_API_KEY || '',
+  marketCheckApiKey: cleanEnvString(process.env.MARKETCHECK_API_KEY),
+  googlePlacesApiKey: cleanEnvString(process.env.GOOGLE_PLACES_API_KEY),
+  googleAiApiKey: cleanEnvString(process.env.GOOGLE_AI_API_KEY),
   ollamaUrl: process.env.OLLAMA_URL || 'http://localhost:11434',
-  vinAuditApiKey: process.env.VINAUDIT_API_KEY || '',
+  vinAuditApiKey: cleanEnvString(process.env.VINAUDIT_API_KEY),
 
   // Notifications
   smtpHost: process.env.SMTP_HOST || 'smtp.gmail.com',

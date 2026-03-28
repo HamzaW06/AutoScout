@@ -12,6 +12,63 @@ interface ImportResult {
   error?: string;
 }
 
+interface RawImportResult {
+  name?: string;
+  dealerName?: string;
+  url?: string;
+  websiteUrl?: string;
+  status?: string;
+  success?: boolean;
+  platform?: string | null;
+  listings_found?: number;
+  listingsFound?: number;
+  priority?: string;
+  suggestedPriority?: string;
+  tier_used?: string;
+  tierUsed?: string;
+  error?: string;
+  errors?: string[];
+  persistError?: string | null;
+}
+
+function normalizeImportResult(raw: RawImportResult): ImportResult {
+  const statusValue = typeof raw.status === 'string' ? raw.status.toUpperCase() : undefined;
+  const statusFromSuccess = raw.success != null ? (raw.success ? 'OK' : 'FAILED') : undefined;
+  const status: 'OK' | 'FAILED' =
+    statusValue === 'OK' || statusValue === 'FAILED'
+      ? statusValue
+      : (statusFromSuccess ?? 'FAILED');
+
+  const errors = [
+    raw.error,
+    ...(Array.isArray(raw.errors) ? raw.errors : []),
+    raw.persistError ?? undefined,
+  ].filter((v): v is string => typeof v === 'string' && v.trim().length > 0);
+
+  return {
+    name: raw.name ?? raw.dealerName ?? 'Unknown dealer',
+    url: raw.url ?? raw.websiteUrl ?? 'Unknown URL',
+    status,
+    platform: raw.platform ?? undefined,
+    listings_found: raw.listings_found ?? raw.listingsFound,
+    priority: raw.priority ?? raw.suggestedPriority,
+    tier_used: raw.tier_used ?? raw.tierUsed,
+    error: errors.length > 0 ? errors.join(' | ') : undefined,
+  };
+}
+
+function normalizeImportResponse(data: unknown): ImportResult[] {
+  if (!data || typeof data !== 'object') {
+    return [];
+  }
+
+  const maybeResults = (data as { results?: unknown }).results;
+  const rows = Array.isArray(maybeResults) ? maybeResults : [data];
+  return rows
+    .filter((row): row is RawImportResult => !!row && typeof row === 'object')
+    .map(normalizeImportResult);
+}
+
 const S = {
   container: {
     padding: '24px',
@@ -171,7 +228,7 @@ export function DealerOnboarding() {
     setLoading(true);
     try {
       const data = await importDealers([{ url: url.trim(), name: name.trim(), city: city.trim() || undefined }]);
-      setResults(Array.isArray(data.results) ? data.results : [data]);
+      setResults(normalizeImportResponse(data));
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Import failed');
     } finally {
@@ -193,7 +250,7 @@ export function DealerOnboarding() {
     setLoading(true);
     try {
       const data = await importDealers(dealers);
-      setResults(Array.isArray(data.results) ? data.results : [data]);
+      setResults(normalizeImportResponse(data));
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Import failed');
     } finally {

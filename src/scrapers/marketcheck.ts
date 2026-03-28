@@ -1,5 +1,6 @@
 import { config } from '../config.js';
 import { logger } from '../logger.js';
+import { getSetting } from '../db/queries.js';
 
 const BASE_URL = 'https://mc-api.marketcheck.com/v2';
 
@@ -129,8 +130,25 @@ class MarketCheckError extends Error {
   }
 }
 
+function sanitizeSecret(raw: string | null | undefined): string {
+  if (!raw) return '';
+  return raw.trim().replace(/^"|"$/g, '');
+}
+
+function resolveApiKey(): string {
+  const envKey = sanitizeSecret(config.marketCheckApiKey);
+  if (envKey) return envKey;
+
+  // Fallback to persisted runtime setting if present.
+  try {
+    return sanitizeSecret(getSetting('marketcheck_api_key'));
+  } catch {
+    return '';
+  }
+}
+
 function ensureApiKey(): void {
-  if (!config.marketCheckApiKey) {
+  if (!resolveApiKey()) {
     throw new MarketCheckError('MarketCheck API key is not configured');
   }
 }
@@ -152,9 +170,10 @@ async function apiFetch<T>(
 ): Promise<T> {
   ensureApiKey();
   ensureBudget();
+  const apiKey = resolveApiKey();
 
   const url = new URL(`${BASE_URL}${path}`);
-  url.searchParams.set('api_key', config.marketCheckApiKey);
+  url.searchParams.set('api_key', apiKey);
   for (const [key, value] of Object.entries(params)) {
     if (value !== undefined && value !== '') {
       url.searchParams.set(key, value);

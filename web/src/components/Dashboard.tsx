@@ -306,11 +306,62 @@ export function Dashboard() {
             Loading...
           </div>
         ) : listings.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-64 text-[var(--text-secondary)]">
-            <p className="text-lg mb-2">No listings found.</p>
-            <p className="text-sm text-[var(--text-muted)]">
-              Add dealers or run a scrape to get started.
+          <div className="flex flex-col items-center justify-center h-full text-center px-6 py-16">
+            <div className="text-5xl mb-6">🚗</div>
+            <h2 className="text-2xl font-bold text-[var(--text-primary)] mb-3">
+              Welcome to AutoScout
+            </h2>
+            <p className="text-[var(--text-secondary)] max-w-md mb-8 leading-relaxed">
+              Your personal used car intelligence platform. Add dealer websites and AutoScout will
+              automatically scrape their inventory, find the best deals, and alert you in real-time.
             </p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-2xl w-full mb-10">
+              <div className="p-4 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)]">
+                <div className="text-2xl mb-2">1️⃣</div>
+                <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-1">Add Dealers</h3>
+                <p className="text-xs text-[var(--text-muted)] leading-relaxed">
+                  Go to <strong>Add Dealers</strong> and paste dealer inventory URLs. AutoScout auto-detects the platform.
+                </p>
+              </div>
+              <div className="p-4 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)]">
+                <div className="text-2xl mb-2">2️⃣</div>
+                <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-1">Auto Scrape</h3>
+                <p className="text-xs text-[var(--text-muted)] leading-relaxed">
+                  Scrapers run automatically on schedule. High priority every 4h, medium every 12h, low daily.
+                </p>
+              </div>
+              <div className="p-4 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)]">
+                <div className="text-2xl mb-2">3️⃣</div>
+                <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-1">Find Deals</h3>
+                <p className="text-xs text-[var(--text-muted)] leading-relaxed">
+                  Listings appear here ranked by value. Get alerts for steals via Discord or the dashboard.
+                </p>
+              </div>
+            </div>
+
+            <button
+              onClick={() => navigate('/dealers/onboard')}
+              className="px-6 py-3 rounded-lg font-semibold text-sm bg-[var(--gold)] text-black hover:opacity-90 transition-opacity cursor-pointer border-none"
+            >
+              ➕ Add Your First Dealer
+            </button>
+
+            <div className="mt-6 flex items-center gap-4 text-xs text-[var(--text-muted)]">
+              <button
+                onClick={() => navigate('/settings')}
+                className="hover:text-[var(--text-secondary)] transition-colors cursor-pointer bg-transparent border-none text-xs text-[var(--text-muted)] underline"
+              >
+                Configure Settings
+              </button>
+              <span>|</span>
+              <button
+                onClick={() => navigate('/scraper-health')}
+                className="hover:text-[var(--text-secondary)] transition-colors cursor-pointer bg-transparent border-none text-xs text-[var(--text-muted)] underline"
+              >
+                View Scraper Health
+              </button>
+            </div>
           </div>
         ) : (
           <table className="w-full text-sm border-collapse">

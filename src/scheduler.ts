@@ -6,6 +6,7 @@ import { sendDailyDigest, sendWeeklyReport } from './notifications/digest.js';
 import { getActiveDealers, getDealersNeedingAlert } from './db/queries.js';
 import { sendDiscordAlert } from './notifications/discord.js';
 import { createConfiguredScraperManager } from './scrapers/registry.js';
+import { resetDailyBudget } from './scrapers/marketcheck.js';
 
 export function startScheduler(): void {
   logger.info('Starting scheduler...');
@@ -55,7 +56,7 @@ export function startScheduler(): void {
   // MarketCheck budget reset: midnight
   cron.schedule('0 0 * * *', () => {
     logger.info('Daily API budget reset');
-    // When the marketcheck module exposes a resetDailyBudget(), call it here.
+    resetDailyBudget();
   });
 
   // ── Tiered scrape schedules ───────────────────────────────────────
