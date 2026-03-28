@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=320">
+  <title>AutoScout</title>
+  <style>
+    /* ================================================================
+       AutoScout Popup
+       ================================================================ */
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      width: 320px;
+      min-height: 200px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #111827;
+      color: #e5e7eb;
+      font-size: 13px;
+    }
+
+    /* Header */
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 14px 16px 10px;
+      border-bottom: 1px solid #1f2937;
+    }
+
+    .header-logo {
+      width: 28px;
+      height: 28px;
+      background: #f0c040;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      font-weight: 800;
+      color: #111827;
+      flex-shrink: 0;
+    }
+
+    .header-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: #f9fafb;
+    }
+
+    .header-version {
+      font-size: 11px;
+      color: #6b7280;
+      margin-left: auto;
+    }
+
+    /* Connection status */
+    .status-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      background: #0a0f1a;
+      font-size: 12px;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .status-dot.connected { background: #22c55e; }
+    .status-dot.disconnected { background: #ef4444; }
+    .status-dot.checking { background: #f59e0b; animation: pulse 1s infinite; }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    .status-text {
+      color: #9ca3af;
+    }
+
+    /* Stats section */
+    .stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      padding: 12px 16px;
+    }
+
+    .stat-card {
+      background: #1f2937;
+      border-radius: 6px;
+      padding: 10px 12px;
+      text-align: center;
+    }
+
+    .stat-value {
+      font-size: 20px;
+      font-weight: 700;
+      color: #f9fafb;
+    }
+
+    .stat-label {
+      font-size: 11px;
+      color: #6b7280;
+      margin-top: 2px;
+    }
+
+    .stat-value.highlight {
+      color: #22c55e;
+    }
+
+    /* Actions */
+    .actions {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding: 12px 16px;
+    }
+
+    .btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 9px 14px;
+      border: none;
+      border-radius: 6px;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s ease;
+    }
+
+    .btn-primary {
+      background: #f0c040;
+      color: #111827;
+    }
+    .btn-primary:hover {
+      background: #e0b030;
+    }
+
+    .btn-secondary {
+      background: #1f2937;
+      color: #d1d5db;
+    }
+    .btn-secondary:hover {
+      background: #374151;
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    /* Settings section */
+    .settings {
+      padding: 12px 16px;
+      border-top: 1px solid #1f2937;
+    }
+
+    .settings-title {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #6b7280;
+      margin-bottom: 8px;
+    }
+
+    .input-group {
+      display: flex;
+      gap: 6px;
+    }
+
+    .input-group input {
+      flex: 1;
+      padding: 6px 10px;
+      background: #0a0f1a;
+      border: 1px solid #374151;
+      border-radius: 4px;
+      color: #e5e7eb;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 12px;
+    }
+
+    .input-group input:focus {
+      outline: none;
+      border-color: #f0c040;
+    }
+
+    .input-group button {
+      padding: 6px 12px;
+      background: #374151;
+      border: none;
+      border-radius: 4px;
+      color: #d1d5db;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .input-group button:hover {
+      background: #4b5563;
+    }
+
+    /* Footer */
+    .footer {
+      padding: 8px 16px 12px;
+      text-align: center;
+      font-size: 10px;
+      color: #4b5563;
+    }
+
+    /* Scan feedback */
+    .scan-result {
+      text-align: center;
+      padding: 4px 16px;
+      font-size: 11px;
+      color: #9ca3af;
+      min-height: 18px;
+    }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <div class="header">
+    <div class="header-logo">A</div>
+    <div class="header-title">AutoScout</div>
+    <span class="header-version">v1.0.0</span>
+  </div>
+
+  <!-- Connection Status -->
+  <div class="status-bar">
+    <div class="status-dot checking" id="statusDot"></div>
+    <span class="status-text" id="statusText">Checking connection...</span>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats">
+    <div class="stat-card">
+      <div class="stat-value" id="listingCount">--</div>
+      <div class="stat-label">Listings</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value highlight" id="stealCount">--</div>
+      <div class="stat-label">STEALs Found</div>
+    </div>
+  </div>
+
+  <!-- Actions -->
+  <div class="actions">
+    <button class="btn btn-primary" id="scanBtn">Scan This Page</button>
+    <div class="scan-result" id="scanResult"></div>
+    <button class="btn btn-secondary" id="dashboardBtn">Open Dashboard</button>
+  </div>
+
+  <!-- Settings -->
+  <div class="settings">
+    <div class="settings-title">Backend URL</div>
+    <div class="input-group">
+      <input type="text" id="backendUrlInput" placeholder="http://localhost:3000" />
+      <button id="saveUrlBtn">Save</button>
+    </div>
+  </div>
+
+  <div class="footer">AutoScout - Used Car Search Engine</div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

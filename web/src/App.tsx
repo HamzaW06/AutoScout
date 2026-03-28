@@ -4,6 +4,9 @@ import { VehicleDetail } from './components/VehicleDetail';
 import { DealerManager } from './components/DealerManager';
 import { Analytics } from './components/Analytics';
 import { PurchaseWorkflow } from './components/PurchaseWorkflow';
+import { MapView } from './components/MapView';
+import { CompareView } from './components/CompareView';
+import { AuditDashboard } from './components/AuditDashboard';
 
 function AppContent() {
   const navigate = useNavigate();
@@ -42,6 +45,24 @@ function AppContent() {
             active={path === '/analytics'}
             onClick={() => navigate('/analytics')}
           />
+          <NavIcon
+            label="Map"
+            icon="\u2316"
+            active={path === '/map'}
+            onClick={() => navigate('/map')}
+          />
+          <NavIcon
+            label="Compare"
+            icon="\u2696"
+            active={path === '/compare'}
+            onClick={() => navigate('/compare')}
+          />
+          <NavIcon
+            label="Audit"
+            icon="\u2318"
+            active={path === '/audit'}
+            onClick={() => navigate('/audit')}
+          />
         </nav>
 
         <div className="flex-1" />
@@ -74,6 +95,9 @@ function AppContent() {
             <Route path="/vehicle/:id/purchase" element={<PurchaseWorkflow />} />
             <Route path="/dealers" element={<DealerManager />} />
             <Route path="/analytics" element={<Analytics />} />
+            <Route path="/map" element={<MapView />} />
+            <Route path="/compare" element={<CompareView />} />
+            <Route path="/audit" element={<AuditDashboard />} />
           </Routes>
         </main>
       </div>

@@ -47,3 +47,25 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--text-muted);
 }
+
+/* Responsive table scroll */
+.table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+/* Hide on mobile */
+@media (max-width: 768px) {
+  .hide-mobile { display: none; }
+}
+
+/* Stack on mobile */
+@media (max-width: 768px) {
+  .stack-mobile { flex-direction: column; }
+}
+
+/* Toast fade-in animation */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translate(-50%, 10px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+.animate-fade-in {
+  animation: fadeIn 0.2s ease-out;
+}

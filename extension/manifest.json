@@ -1,0 +1,40 @@
+{
+  "manifest_version": 3,
+  "name": "AutoScout",
+  "version": "1.0.0",
+  "description": "Overlay car deal ratings on marketplace listings",
+  "permissions": ["activeTab", "storage"],
+  "host_permissions": [
+    "http://localhost:3000/*",
+    "https://*.craigslist.org/*",
+    "https://*.facebook.com/marketplace/*",
+    "https://www.cars.com/*",
+    "https://www.autotrader.com/*",
+    "https://www.cargurus.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://*.craigslist.org/search/*",
+        "https://*.craigslist.org/*/d/*",
+        "https://www.facebook.com/marketplace/*",
+        "https://www.cars.com/shopping/*",
+        "https://www.autotrader.com/cars-for-sale/*",
+        "https://www.cargurus.com/Cars/*"
+      ],
+      "js": ["content.js"],
+      "css": ["styles.css"]
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  }
+}

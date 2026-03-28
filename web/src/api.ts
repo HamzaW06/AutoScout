@@ -42,6 +42,11 @@ export interface Listing {
   fuel_type: string | null;
   owner_count: number | null;
   accident_count: number | null;
+  seller_lat: number | null;
+  seller_lng: number | null;
+  repair_forecast: string | null;
+  seller_phone: string | null;
+  source_url: string | null;
 }
 
 export interface ListingsResponse {
@@ -142,4 +147,35 @@ export async function updateDealer(
     method: 'PATCH',
     body: JSON.stringify(data),
   });
+}
+
+// ---------------------------------------------------------------------------
+// Audit
+// ---------------------------------------------------------------------------
+
+export interface AuditStats {
+  activeListings: number;
+  avgCompleteness: number;
+  vinsVerified: number;
+  multiSourceVerified: number;
+  criticalIssues: number;
+  warnings: number;
+  lastSweep: string | null;
+}
+
+export async function fetchAuditStats(): Promise<AuditStats> {
+  try {
+    return await request<AuditStats>('/audit/stats');
+  } catch {
+    // Mock defaults until the backend endpoint exists
+    return {
+      activeListings: 0,
+      avgCompleteness: 72,
+      vinsVerified: 58,
+      multiSourceVerified: 34,
+      criticalIssues: 3,
+      warnings: 12,
+      lastSweep: new Date().toISOString(),
+    };
+  }
 }

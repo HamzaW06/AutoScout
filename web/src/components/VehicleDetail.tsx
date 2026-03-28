@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { fetchListing, toggleFavorite, type Listing } from '../api';
 import { DealBadge } from './DealBadge';
+import { ScamAlert } from './ScamAlert';
+import { ContactButton } from './ContactButton';
 
 function fmt$(n: number | null): string {
   if (n == null) return '—';
@@ -97,6 +99,11 @@ export function VehicleDetail() {
       >
         ← Back to listings
       </button>
+
+      {/* Scam alert banner */}
+      {listing.scam_score != null && (
+        <ScamAlert scamScore={listing.scam_score} scamFlags={listing.scam_flags} />
+      )}
 
       {/* Hero */}
       <div className="flex items-start justify-between gap-4">
@@ -341,8 +348,21 @@ export function VehicleDetail() {
       {/* Seller info */}
       {(listing.seller_name || listing.seller_location || listing.seller_type) && (
         <div className="p-4 rounded border border-[var(--border)] bg-[var(--bg-surface)]">
-          <div className="text-xs uppercase tracking-wider text-[var(--text-muted)] mb-2">
-            Seller
+          <div className="flex items-center justify-between mb-2">
+            <div className="text-xs uppercase tracking-wider text-[var(--text-muted)]">
+              Seller
+            </div>
+            <ContactButton
+              listing={{
+                year: listing.year,
+                make: listing.make,
+                model: listing.model,
+                asking_price: listing.asking_price,
+                seller_phone: listing.seller_phone ?? null,
+                seller_name: listing.seller_name,
+                source_url: listing.source_url ?? null,
+              }}
+            />
           </div>
           <div className="flex items-center gap-4 text-sm">
             {listing.seller_name && (
