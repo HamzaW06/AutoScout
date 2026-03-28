@@ -265,6 +265,14 @@ CREATE TABLE IF NOT EXISTS audit_log (
   resolved INTEGER DEFAULT 0,
   created_at TEXT DEFAULT (datetime('now'))
 );
+
+-- NHTSA_CACHE table
+CREATE TABLE IF NOT EXISTS nhtsa_cache (
+  cache_key TEXT PRIMARY KEY,
+  data TEXT NOT NULL,
+  fetched_at TEXT DEFAULT (datetime('now')),
+  expires_at TEXT NOT NULL
+);
 `;
 
 const INDEXES_SQL = `
