@@ -9,6 +9,7 @@ import { CompareView } from './components/CompareView';
 import { AuditDashboard } from './components/AuditDashboard';
 import DealerOnboarding from './components/DealerOnboarding';
 import SettingsPanel from './components/SettingsPanel';
+import { ScraperHealth } from './components/ScraperHealth';
 
 function AppContent() {
   const navigate = useNavigate();
@@ -72,6 +73,12 @@ function AppContent() {
             onClick={() => navigate('/dealers/onboard')}
           />
           <NavIcon
+            label="Scraper Health"
+            icon="\u2692"
+            active={path === '/scraper-health'}
+            onClick={() => navigate('/scraper-health')}
+          />
+          <NavIcon
             label="Settings"
             icon="\u2699"
             active={path === '/settings'}
@@ -114,6 +121,7 @@ function AppContent() {
             <Route path="/audit" element={<AuditDashboard />} />
             <Route path="/dealers/onboard" element={<DealerOnboarding />} />
             <Route path="/settings" element={<SettingsPanel />} />
+            <Route path="/scraper-health" element={<ScraperHealth />} />
           </Routes>
         </main>
       </div>
