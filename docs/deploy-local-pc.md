@@ -64,15 +64,7 @@ pm2 start dist/index.js --name autoscout
 pm2 save
 ```
 
-Check:
-
-```powershell
-pm2 status
-pm2 logs autoscout --lines 80
-```
-
 ## 6) Make it survive reboot (Windows)
-If you use pm2-windows-startup:
 
 ```powershell
 npm install -g pm2-windows-startup
