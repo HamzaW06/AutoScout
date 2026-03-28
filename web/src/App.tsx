@@ -7,6 +7,8 @@ import { PurchaseWorkflow } from './components/PurchaseWorkflow';
 import { MapView } from './components/MapView';
 import { CompareView } from './components/CompareView';
 import { AuditDashboard } from './components/AuditDashboard';
+import DealerOnboarding from './components/DealerOnboarding';
+import SettingsPanel from './components/SettingsPanel';
 
 function AppContent() {
   const navigate = useNavigate();
@@ -63,6 +65,18 @@ function AppContent() {
             active={path === '/audit'}
             onClick={() => navigate('/audit')}
           />
+          <NavIcon
+            label="Add Dealers"
+            icon="\u002b"
+            active={path === '/dealers/onboard'}
+            onClick={() => navigate('/dealers/onboard')}
+          />
+          <NavIcon
+            label="Settings"
+            icon="\u2699"
+            active={path === '/settings'}
+            onClick={() => navigate('/settings')}
+          />
         </nav>
 
         <div className="flex-1" />
@@ -98,6 +112,8 @@ function AppContent() {
             <Route path="/map" element={<MapView />} />
             <Route path="/compare" element={<CompareView />} />
             <Route path="/audit" element={<AuditDashboard />} />
+            <Route path="/dealers/onboard" element={<DealerOnboarding />} />
+            <Route path="/settings" element={<SettingsPanel />} />
           </Routes>
         </main>
       </div>

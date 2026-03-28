@@ -47,6 +47,8 @@ export interface Listing {
   repair_forecast: string | null;
   seller_phone: string | null;
   source_url: string | null;
+  scrape_confidence?: number;
+  scrape_tier?: string;
 }
 
 export interface ListingsResponse {
@@ -162,6 +164,96 @@ export interface AuditStats {
   warnings: number;
   lastSweep: string | null;
 }
+
+// ---------------------------------------------------------------------------
+// Dealer import / scrape / health
+// ---------------------------------------------------------------------------
+
+export async function importDealers(dealers: Array<{ url: string; name: string; city?: string }>) {
+  const res = await fetch(`${API_BASE}/dealers/import`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ dealers }),
+  });
+  return res.json();
+}
+
+export async function triggerDealerScrape(dealerId: number) {
+  const res = await fetch(`${API_BASE}/dealers/${dealerId}/scrape`, { method: 'POST' });
+  return res.json();
+}
+
+export async function fetchDealerHealth(dealerId: number) {
+  const res = await fetch(`${API_BASE}/dealers/${dealerId}/health`);
+  return res.json();
+}
+
+export async function fetchScraperHealth() {
+  const res = await fetch(`${API_BASE}/scraper-health`);
+  return res.json();
+}
+
+export async function exportListings(format: 'csv' | 'json', filters: Record<string, unknown> = {}) {
+  const res = await fetch(`${API_BASE}/listings/export`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ format, filters }),
+  });
+  if (format === 'csv') {
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'autoscout-export.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  } else {
+    return res.json();
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Settings
+// ---------------------------------------------------------------------------
+
+export async function fetchSettings() {
+  const res = await fetch(`${API_BASE}/settings`);
+  return res.json();
+}
+
+export async function saveSettings(settings: Record<string, string>) {
+  const res = await fetch(`${API_BASE}/settings`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(settings),
+  });
+  return res.json();
+}
+
+// ---------------------------------------------------------------------------
+// Transactions
+// ---------------------------------------------------------------------------
+
+export async function createTransaction(data: {
+  listing_id?: string; dealer_id?: number; type: string;
+  notes: string; offered_price?: number; final_price?: number;
+}) {
+  const res = await fetch(`${API_BASE}/transactions`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  return res.json();
+}
+
+export async function fetchTransactions() {
+  const res = await fetch(`${API_BASE}/transactions`);
+  return res.json();
+}
+
+// ---------------------------------------------------------------------------
+// Audit
+// ---------------------------------------------------------------------------
 
 export async function fetchAuditStats(): Promise<AuditStats> {
   try {
