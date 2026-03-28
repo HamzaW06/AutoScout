@@ -77,7 +77,7 @@ export async function fetchVehicleHistory(vin: string): Promise<VehicleHistoryRe
       return null;
     }
 
-    const data = await resp.json();
+    const data: any = await resp.json();
 
     if (data.error || data.status === 'error') {
       logger.error({ error: data.error || data.message, vin }, 'VinAudit returned error');
