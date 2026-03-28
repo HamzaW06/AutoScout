@@ -873,6 +873,23 @@ export function createServer(): express.Express {
     }),
   );
 
+  /** POST /api/fetch-listings – manually trigger MarketCheck + Craigslist fetch */
+  app.post(
+    '/api/fetch-listings',
+    asyncHandler(async (_req, res) => {
+      res.json({ queued: true });
+
+      setImmediate(async () => {
+        try {
+          const { runListingFetch } = await import('./scheduler.js');
+          await runListingFetch();
+        } catch (err) {
+          logger.error(err, 'Manual listing fetch failed');
+        }
+      });
+    }),
+  );
+
   // ==========================================================================
   // Enrichment & Analysis
   // ==========================================================================

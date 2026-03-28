@@ -14,134 +14,141 @@ import { ScraperHealth } from './components/ScraperHealth';
 import { ExportTools } from './components/ExportTools';
 import { TransactionTracker } from './components/TransactionTracker';
 
+/* ─── Navigation structure ─── */
 interface NavItem {
   label: string;
   path: string;
-  icon: string;
-  section?: string;
+  section: string;
+  description?: string;
 }
 
-const NAV_ITEMS: NavItem[] = [
-  { label: 'Dashboard', path: '/', icon: '🏠', section: 'main' },
-  { label: 'Dealers', path: '/dealers', icon: '🏪', section: 'main' },
-  { label: 'Add Dealers', path: '/dealers/onboard', icon: '➕', section: 'main' },
-  { label: 'Analytics', path: '/analytics', icon: '📊', section: 'insights' },
-  { label: 'Map View', path: '/map', icon: '🗺', section: 'insights' },
-  { label: 'Compare', path: '/compare', icon: '⚖', section: 'insights' },
-  { label: 'Scraper Health', path: '/scraper-health', icon: '💚', section: 'system' },
-  { label: 'Audit', path: '/audit', icon: '🔍', section: 'system' },
-  { label: 'Export', path: '/export', icon: '📥', section: 'tools' },
-  { label: 'Transactions', path: '/transactions', icon: '📋', section: 'tools' },
-  { label: 'Settings', path: '/settings', icon: '⚙', section: 'tools' },
+const NAV: NavItem[] = [
+  { label: 'Dashboard',      path: '/',                section: 'core',    description: 'Listings & deals' },
+  { label: 'Dealers',        path: '/dealers',         section: 'core',    description: 'Manage sources' },
+  { label: 'Add Dealers',    path: '/dealers/onboard', section: 'core',    description: 'Import new dealers' },
+  { label: 'Analytics',      path: '/analytics',       section: 'analyze', description: 'Market trends' },
+  { label: 'Map',            path: '/map',             section: 'analyze', description: 'Geographic view' },
+  { label: 'Compare',        path: '/compare',         section: 'analyze', description: 'Side by side' },
+  { label: 'Scraper Health', path: '/scraper-health',  section: 'ops',     description: 'Scraper status' },
+  { label: 'Audit',          path: '/audit',           section: 'ops',     description: 'Data quality' },
+  { label: 'Export',         path: '/export',          section: 'manage',  description: 'Download data' },
+  { label: 'Transactions',   path: '/transactions',    section: 'manage',  description: 'Purchase tracker' },
+  { label: 'Settings',       path: '/settings',        section: 'manage',  description: 'Configuration' },
 ];
 
-const SECTION_LABELS: Record<string, string> = {
-  main: 'MAIN',
-  insights: 'INSIGHTS',
-  system: 'SYSTEM',
-  tools: 'TOOLS',
+const SECTIONS: Record<string, string> = {
+  core: 'Core',
+  analyze: 'Analyze',
+  ops: 'Operations',
+  manage: 'Manage',
 };
 
+/* ─── Main layout ─── */
 function AppContent() {
   const navigate = useNavigate();
   const location = useLocation();
   const path = location.pathname;
   const [collapsed, setCollapsed] = useState(false);
 
-  function isActive(item: NavItem) {
-    if (item.path === '/') return path === '/' || path.startsWith('/vehicle');
-    return path.startsWith(item.path);
-  }
+  const isActive = (item: NavItem) =>
+    item.path === '/'
+      ? path === '/' || path.startsWith('/vehicle')
+      : path.startsWith(item.path);
 
-  // Group nav items by section
-  const sections = NAV_ITEMS.reduce<Record<string, NavItem[]>>((acc, item) => {
-    const section = item.section || 'main';
-    if (!acc[section]) acc[section] = [];
-    acc[section].push(item);
+  const grouped = NAV.reduce<Record<string, NavItem[]>>((acc, item) => {
+    (acc[item.section] ??= []).push(item);
     return acc;
   }, {});
 
   return (
-    <div className="flex h-screen bg-[var(--bg-base)]">
-      {/* Sidebar */}
+    <div className="noise-bg flex h-screen bg-[var(--bg-base)]">
+      {/* ── Sidebar ── */}
       <aside
-        className={`${collapsed ? 'w-14' : 'w-52'} flex-shrink-0 border-r border-[var(--border)] bg-[var(--bg-surface)] flex flex-col transition-all duration-200`}
+        className={`${collapsed ? 'w-[52px]' : 'w-[220px]'} flex-shrink-0 flex flex-col border-r border-[var(--border)] bg-[var(--bg-surface)] transition-all duration-200 ease-out`}
       >
-        {/* Logo / Brand */}
-        <div className="flex items-center gap-2 px-3 py-4 border-b border-[var(--border)]">
-          <div
-            className="w-8 h-8 rounded-lg flex items-center justify-center bg-[var(--gold)]/15 text-[var(--gold)] font-bold text-sm select-none cursor-pointer flex-shrink-0"
-            onClick={() => navigate('/')}
-          >
-            AS
+        {/* Brand */}
+        <div
+          className="flex items-center gap-2.5 px-3 h-14 border-b border-[var(--border)] cursor-pointer select-none flex-shrink-0"
+          onClick={() => navigate('/')}
+        >
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-[var(--amber)]/12 flex-shrink-0 relative">
+            <span className="text-[var(--amber)] font-bold text-xs tracking-tight">AS</span>
+            <div className="absolute inset-0 rounded-lg border border-[var(--amber)]/20" />
           </div>
           {!collapsed && (
-            <div className="flex flex-col min-w-0" onClick={() => navigate('/')} style={{ cursor: 'pointer' }}>
-              <span className="text-sm font-bold text-[var(--text-primary)] leading-tight">
-                Auto<span className="text-[var(--gold)]">Scout</span>
+            <div className="flex flex-col min-w-0">
+              <span className="text-[13px] font-bold text-[var(--text-primary)] leading-none tracking-tight">
+                Auto<span className="text-[var(--amber)]">Scout</span>
               </span>
-              <span className="text-[10px] text-[var(--text-muted)] leading-tight">
-                Used car intelligence
+              <span className="text-[10px] text-[var(--text-muted)] leading-none mt-0.5 font-medium">
+                Car Intelligence
               </span>
             </div>
           )}
-          <div className="flex-1" />
-          <button
-            onClick={() => setCollapsed(!collapsed)}
-            className="w-6 h-6 rounded flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)] transition-colors cursor-pointer bg-transparent border-none text-xs"
-            title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          >
-            {collapsed ? '▶' : '◀'}
-          </button>
         </div>
 
-        {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto py-2 px-2">
-          {Object.entries(sections).map(([section, items]) => (
-            <div key={section} className="mb-3">
+        {/* Nav */}
+        <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-4">
+          {Object.entries(grouped).map(([section, items]) => (
+            <div key={section}>
               {!collapsed && (
-                <div className="px-2 py-1.5 text-[10px] font-semibold tracking-widest text-[var(--text-muted)] uppercase">
-                  {SECTION_LABELS[section] || section}
+                <div className="px-2 mb-1.5 text-[10px] font-semibold tracking-[0.1em] uppercase text-[var(--text-muted)]">
+                  {SECTIONS[section]}
                 </div>
               )}
-              {collapsed && <div className="border-b border-[var(--border)] mx-1 mb-2" />}
-              {items.map((item) => {
-                const active = isActive(item);
-                return (
-                  <button
-                    key={item.path}
-                    onClick={() => navigate(item.path)}
-                    title={collapsed ? item.label : undefined}
-                    className={`w-full flex items-center gap-2.5 rounded-md text-left transition-colors cursor-pointer border-none mb-0.5 ${
-                      collapsed ? 'px-2 py-2 justify-center' : 'px-2.5 py-2'
-                    } ${
-                      active
-                        ? 'bg-[var(--gold)]/10 text-[var(--gold)]'
-                        : 'bg-transparent text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)]'
-                    }`}
-                  >
-                    <span className="text-sm flex-shrink-0 w-5 text-center">{item.icon}</span>
-                    {!collapsed && (
-                      <span className={`text-[13px] truncate ${active ? 'font-semibold' : 'font-medium'}`}>
-                        {item.label}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
+              {collapsed && section !== 'core' && (
+                <div className="mx-2 mb-2 border-t border-[var(--border)]" />
+              )}
+              <div className="space-y-0.5">
+                {items.map((item) => {
+                  const active = isActive(item);
+                  return (
+                    <button
+                      key={item.path}
+                      onClick={() => navigate(item.path)}
+                      title={collapsed ? item.label : undefined}
+                      className={`group w-full flex items-center rounded-lg text-left border-none cursor-pointer transition-all duration-150 ${
+                        collapsed ? 'px-2.5 py-2.5 justify-center' : 'px-2.5 py-[7px] gap-2.5'
+                      } ${
+                        active
+                          ? 'bg-[var(--amber)]/8 text-[var(--amber)]'
+                          : 'bg-transparent text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]'
+                      }`}
+                    >
+                      {/* Active indicator */}
+                      {active && !collapsed && (
+                        <div className="w-[3px] h-4 rounded-full bg-[var(--amber)] flex-shrink-0 -ml-0.5 mr-0.5" />
+                      )}
+                      {!collapsed && (
+                        <span className={`text-[13px] truncate ${active ? 'font-semibold' : 'font-medium'}`}>
+                          {item.label}
+                        </span>
+                      )}
+                      {collapsed && (
+                        <span className="text-[11px] font-semibold">
+                          {item.label.slice(0, 2).toUpperCase()}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           ))}
         </nav>
 
         {/* Sidebar footer */}
-        {!collapsed && (
-          <div className="px-3 py-3 border-t border-[var(--border)] text-[10px] text-[var(--text-muted)]">
-            AutoScout v0.1.0
-          </div>
-        )}
+        <div className="flex-shrink-0 border-t border-[var(--border)] p-2">
+          <button
+            onClick={() => setCollapsed(!collapsed)}
+            className="w-full flex items-center justify-center py-2 rounded-md text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] transition-colors cursor-pointer bg-transparent border-none text-[11px] font-medium"
+          >
+            {collapsed ? '→' : '← Collapse'}
+          </button>
+        </div>
       </aside>
 
-      {/* Main content area */}
+      {/* ── Content ── */}
       <div className="flex-1 flex flex-col min-w-0">
         <main className="flex-1 overflow-hidden">
           <Routes>
@@ -165,12 +172,10 @@ function AppContent() {
   );
 }
 
-function App() {
+export default function App() {
   return (
     <BrowserRouter>
       <AppContent />
     </BrowserRouter>
   );
 }
-
-export default App;

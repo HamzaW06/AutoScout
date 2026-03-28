@@ -8,6 +8,43 @@ import { sendDiscordAlert } from './notifications/discord.js';
 import { createConfiguredScraperManager } from './scrapers/registry.js';
 import { resetDailyBudget } from './scrapers/marketcheck.js';
 import { syncMarketCheckListings } from './scrapers/marketcheck-sync.js';
+import { fetchMarketCheckListings } from './scrapers/sources/marketcheck-source.js';
+import { CraigslistScraper } from './scrapers/craigslist.js';
+import { processListings } from './enrichment/pipeline.js';
+
+/** Run MarketCheck inventory fetch + Craigslist scrape. Called on startup and by the manual trigger. */
+export async function runListingFetch(): Promise<void> {
+  logger.info('runListingFetch: starting MarketCheck + Craigslist fetch');
+
+  // MarketCheck — broad location-based fetch (no search configs needed)
+  try {
+    const result = await fetchMarketCheckListings();
+    logger.info(
+      { inserted: result.inserted, updated: result.updated, errors: result.errors.length },
+      'runListingFetch: MarketCheck complete',
+    );
+  } catch (err) {
+    logger.error({ err }, 'runListingFetch: MarketCheck failed');
+  }
+
+  // Craigslist
+  try {
+    const scraper = new CraigslistScraper();
+    const clResult = await scraper.scrape({ maxDetailFetches: 30 });
+    if (clResult.listings.length > 0) {
+      const raw = clResult.listings.map((l) => ({ ...l } as unknown as Record<string, unknown>));
+      const pipeResult = await processListings(raw, 'craigslist');
+      logger.info(
+        { inserted: pipeResult.inserted, updated: pipeResult.updated },
+        'runListingFetch: Craigslist complete',
+      );
+    } else {
+      logger.info('runListingFetch: Craigslist returned 0 listings');
+    }
+  } catch (err) {
+    logger.error({ err }, 'runListingFetch: Craigslist failed');
+  }
+}
 
 export function startScheduler(): void {
   logger.info('Starting scheduler...');
@@ -72,6 +109,27 @@ export function startScheduler(): void {
       logger.info({ result }, 'MarketCheck inventory sync complete');
     } catch (err) {
       logger.error(err, 'MarketCheck inventory sync failed');
+    }
+  });
+
+  // Craigslist scrape: every 2 hours
+  cron.schedule('0 */2 * * *', async () => {
+    logger.info('Scheduled Craigslist scrape starting...');
+    try {
+      const scraper = new CraigslistScraper();
+      const clResult = await scraper.scrape({ maxDetailFetches: 30 });
+      if (clResult.listings.length > 0) {
+        const raw = clResult.listings.map((l) => ({ ...l } as unknown as Record<string, unknown>));
+        const pipeResult = await processListings(raw, 'craigslist');
+        logger.info(
+          { inserted: pipeResult.inserted, updated: pipeResult.updated },
+          'Scheduled Craigslist scrape complete',
+        );
+      } else {
+        logger.info('Scheduled Craigslist scrape: no listings returned');
+      }
+    } catch (err) {
+      logger.error(err, 'Scheduled Craigslist scrape failed');
     }
   });
 
@@ -165,5 +223,5 @@ export function startScheduler(): void {
     }
   });
 
-  logger.info('Scheduler started with 10 cron jobs');
+  logger.info('Scheduler started with 11 cron jobs');
 }

@@ -50,9 +50,72 @@ const TITLE_REGEX = /^(\d{4})\s+(.+?)(?:\s*-\s*\$[\d,]+)?(?:\s*\(([^)]+)\))?$/;
 const PRICE_REGEX = /\$[\d,]+/;
 const POST_ID_REGEX = /\/(\d+)\.html/;
 
+/**
+ * Maps a US city name (lowercase) or state abbreviation to the Craigslist subdomain.
+ * Falls back to the nearest major metro when an exact match isn't found.
+ */
+function craigslistSubdomain(city: string, state: string): string {
+  const c = city.toLowerCase().replace(/\s+/g, '');
+  const s = state.toUpperCase();
+
+  // Exact city matches
+  const cityMap: Record<string, string> = {
+    houston: 'houston', leaguecity: 'houston', sugarland: 'houston', pearland: 'houston',
+    dallas: 'dallas', fortworth: 'dallas', arlington: 'dallas', plano: 'dallas',
+    austin: 'austin', sanantonio: 'sanantonio',
+    chicago: 'chicago', naperville: 'chicago', aurora: 'chicago',
+    losangeles: 'losangeles', la: 'losangeles', longbeach: 'losangeles', anaheim: 'losangeles',
+    newyork: 'newyork', nyc: 'newyork', brooklyn: 'newyork', queens: 'newyork',
+    miami: 'miami', orlando: 'orlando', tampa: 'tampa', jacksonville: 'jacksonville',
+    atlanta: 'atlanta', charlotte: 'charlotte', raleigh: 'raleigh',
+    phoenix: 'phoenix', tucson: 'tucson', scottsdale: 'phoenix', tempe: 'phoenix',
+    denver: 'denver', aurora_co: 'denver',
+    seattle: 'seattle', bellevue: 'seattle', tacoma: 'seattle',
+    portland: 'portland',
+    sanfrancisco: 'sfbay', sf: 'sfbay', sanjose: 'sfbay', oakland: 'sfbay',
+    sandiego: 'sandiego',
+    lasvegas: 'lasvegas', henderson: 'lasvegas',
+    minneapolis: 'minneapolis', saintpaul: 'minneapolis',
+    detroit: 'detroit', annarbor: 'detroit',
+    cleveland: 'cleveland', columbus: 'columbus', cincinnati: 'cincinnati',
+    pittsburgh: 'pittsburgh', philadelphia: 'philadelphia',
+    boston: 'boston', worcester: 'boston',
+    baltimore: 'baltimore', washingtondc: 'washingtondc', dc: 'washingtondc',
+    nashville: 'nashville', memphis: 'memphis', knoxville: 'knoxville',
+    stlouis: 'stlouis', kansascity: 'kansascity',
+    indianapolis: 'indianapolis', louisville: 'louisville',
+    milwaukee: 'milwaukee', madison: 'milwaukee',
+    saltlakecity: 'saltlakecity', slc: 'saltlakecity',
+    albuquerque: 'albuquerque', elstep: 'elpaso', elpaso: 'elpaso',
+    oklahomacity: 'oklahomacity', tulsa: 'tulsa',
+    richmond: 'richmond', norfolk: 'norfolk',
+    neworleans: 'neworleans', batonrouge: 'batonrouge',
+    omaha: 'omaha', lincoln: 'omaha',
+  };
+
+  if (cityMap[c]) return cityMap[c];
+
+  // State fallbacks
+  const stateMap: Record<string, string> = {
+    TX: 'houston', CA: 'losangeles', NY: 'newyork', FL: 'miami', IL: 'chicago',
+    PA: 'philadelphia', OH: 'cleveland', GA: 'atlanta', NC: 'charlotte', MI: 'detroit',
+    NJ: 'newjersey', VA: 'washingtondc', WA: 'seattle', AZ: 'phoenix', MA: 'boston',
+    TN: 'nashville', IN: 'indianapolis', MO: 'stlouis', MD: 'baltimore', CO: 'denver',
+    WI: 'milwaukee', MN: 'minneapolis', OR: 'portland', SC: 'charlestown', AL: 'birmingham',
+    LA: 'neworleans', KY: 'louisville', OK: 'oklahomacity', UT: 'saltlakecity',
+    NV: 'lasvegas', NM: 'albuquerque', KS: 'kansascity', NE: 'omaha',
+    IA: 'desmoines', AR: 'littlerock', MS: 'jackson', WV: 'charlestonwv',
+    ID: 'boise', HI: 'honolulu', AK: 'anchorage', NH: 'newHampshire',
+    RI: 'providence', CT: 'hartford', DE: 'delaware', MT: 'montana',
+    ND: 'nd', SD: 'sd', WY: 'wyoming', VT: 'vermont', ME: 'maine',
+  };
+
+  return stateMap[s] ?? 'houston';
+}
+
 export class CraigslistScraper extends BaseScraper {
   name = 'craigslist';
-  private baseUrl = 'https://houston.craigslist.org';
+  private baseUrl = `https://${craigslistSubdomain(config.userCity, config.userState)}.craigslist.org`;
 
   async scrape(params?: CraigslistSearchParams): Promise<ScraperResult> {
     const start = Date.now();

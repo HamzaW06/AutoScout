@@ -24,40 +24,20 @@ function fmtMi(n: number | null): string {
 function isToday(dateStr: string): boolean {
   const d = new Date(dateStr);
   const now = new Date();
-  return (
-    d.getFullYear() === now.getFullYear() &&
-    d.getMonth() === now.getMonth() &&
-    d.getDate() === now.getDate()
-  );
+  return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
 }
 
-type SortField =
-  | 'deal_score'
-  | 'year'
-  | 'mileage'
-  | 'asking_price'
-  | 'market_value'
-  | 'risk_score'
-  | 'days_on_market'
-  | 'distance_miles';
+type SortField = 'deal_score' | 'year' | 'mileage' | 'asking_price' | 'market_value' | 'risk_score' | 'days_on_market' | 'distance_miles';
 type SortDir = 'asc' | 'desc';
 
-const RATING_ORDER: Record<string, number> = {
-  STEAL: 0,
-  GREAT: 1,
-  GOOD: 2,
-  FAIR: 3,
-  HIGH: 4,
-  'RIP-OFF': 5,
-};
-
-const RATING_PILL_COLORS: Record<string, string> = {
-  STEAL: 'bg-emerald-500/20 text-emerald-400',
-  GREAT: 'bg-green-500/15 text-green-400',
-  GOOD: 'bg-blue-500/15 text-blue-400',
-  FAIR: 'bg-neutral-500/15 text-neutral-400',
-  HIGH: 'bg-orange-500/15 text-orange-400',
-  'RIP-OFF': 'bg-red-500/20 text-red-400',
+const RATING_ORDER: Record<string, number> = { STEAL: 0, GREAT: 1, GOOD: 2, FAIR: 3, HIGH: 4, 'RIP-OFF': 5 };
+const RATING_COLORS: Record<string, { bg: string; text: string; dot: string }> = {
+  STEAL:    { bg: 'bg-emerald-500/12', text: 'text-emerald-400', dot: 'bg-emerald-400' },
+  GREAT:    { bg: 'bg-green-500/10',   text: 'text-green-400',   dot: 'bg-green-400' },
+  GOOD:     { bg: 'bg-sky-500/10',     text: 'text-sky-400',     dot: 'bg-sky-400' },
+  FAIR:     { bg: 'bg-neutral-500/10', text: 'text-neutral-400', dot: 'bg-neutral-400' },
+  HIGH:     { bg: 'bg-orange-500/10',  text: 'text-orange-400',  dot: 'bg-orange-400' },
+  'RIP-OFF':{ bg: 'bg-red-500/10',     text: 'text-red-400',     dot: 'bg-red-400' },
 };
 
 const PAGE_SIZE = 50;
@@ -72,16 +52,69 @@ interface Toast {
   deal_score: number;
 }
 
-const emptyFilters: Filters = {
-  make: '',
-  model: '',
-  yearMin: '',
-  yearMax: '',
-  priceMax: '',
-  mileageMax: '',
-  titleStatus: '',
-};
+const emptyFilters: Filters = { make: '', model: '', yearMin: '', yearMax: '', priceMax: '', mileageMax: '', titleStatus: '' };
 
+/* ─── Welcome Screen ─── */
+function WelcomeView({ onAddDealer }: { onAddDealer: () => void }) {
+  return (
+    <div className="flex items-center justify-center h-full animate-fade-in">
+      <div className="max-w-2xl w-full px-8 py-16 text-center">
+        {/* Hero */}
+        <div className="relative inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-[var(--amber)]/8 border border-[var(--amber)]/15 mb-8">
+          <span className="text-4xl">🚗</span>
+          <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-[var(--amber)]/20 border border-[var(--amber)]/30 flex items-center justify-center">
+            <span className="text-xs">✨</span>
+          </div>
+        </div>
+
+        <h1 className="text-3xl font-bold text-[var(--text-primary)] mb-3 tracking-tight">
+          Welcome to Auto<span className="text-[var(--amber)]">Scout</span>
+        </h1>
+        <p className="text-[var(--text-secondary)] text-base leading-relaxed max-w-md mx-auto mb-12">
+          Your personal used car intelligence platform. Add dealer websites and we'll
+          automatically find the best deals for you.
+        </p>
+
+        {/* Steps */}
+        <div className="grid grid-cols-3 gap-4 mb-12">
+          {[
+            { step: '01', title: 'Add Dealers', desc: 'Paste any dealer inventory URL. We auto-detect the platform and start scraping.' },
+            { step: '02', title: 'Auto Scrape', desc: 'Scrapers run on schedule — every 4h for top dealers. No manual work needed.' },
+            { step: '03', title: 'Find Deals', desc: 'Listings ranked by value with real-time alerts for steals via Discord.' },
+          ].map((s) => (
+            <div key={s.step} className="card p-5 text-left group hover:border-[var(--amber)]/20 transition-all">
+              <div className="text-[11px] font-bold text-[var(--amber)] tracking-widest mb-3 mono">{s.step}</div>
+              <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-2">{s.title}</h3>
+              <p className="text-xs text-[var(--text-muted)] leading-relaxed">{s.desc}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* CTA */}
+        <button onClick={onAddDealer} className="btn-primary text-sm px-8 py-3">
+          Add Your First Dealer →
+        </button>
+
+        <div className="mt-6 flex items-center justify-center gap-6 text-xs text-[var(--text-muted)]">
+          <span className="flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-[var(--green)]" />
+            Free forever
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-[var(--blue)]" />
+            200+ dealer platforms
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-[var(--amber)]" />
+            Real-time alerts
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Main Dashboard ─── */
 export function Dashboard() {
   const navigate = useNavigate();
   const [listings, setListings] = useState<Listing[]>([]);
@@ -94,39 +127,24 @@ export function Dashboard() {
   const [filters, setFilters] = useState<Filters>(emptyFilters);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [newListingCount, setNewListingCount] = useState(0);
+  const [fetching, setFetching] = useState(false);
   const toastIdRef = useRef(0);
 
   const { on } = useWebSocket();
 
-  // Listen for deal_alert events — show toast notifications
   useEffect(() => {
-    const unsubAlert = on('deal_alert', (data) => {
-      const d = data as { alertType: string; year: number; make: string; model: string; price: number; deal_score: number };
+    const unsub = on('deal_alert', (data) => {
+      const d = data as Toast;
       const id = ++toastIdRef.current;
-      const toast: Toast = {
-        id,
-        alertType: d.alertType,
-        year: d.year,
-        make: d.make,
-        model: d.model,
-        price: d.price,
-        deal_score: d.deal_score,
-      };
-      setToasts((prev) => [...prev, toast]);
-      // Auto-dismiss after 8 seconds
-      setTimeout(() => {
-        setToasts((prev) => prev.filter((t) => t.id !== id));
-      }, 8000);
+      setToasts((prev) => [...prev, { ...d, id }]);
+      setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 8000);
     });
-    return unsubAlert;
+    return unsub;
   }, [on]);
 
-  // Listen for new_listing events — increment counter
   useEffect(() => {
-    const unsubListing = on('new_listing', () => {
-      setNewListingCount((c) => c + 1);
-    });
-    return unsubListing;
+    const unsub = on('new_listing', () => setNewListingCount((c) => c + 1));
+    return unsub;
   }, [on]);
 
   const loadData = useCallback(async () => {
@@ -146,10 +164,7 @@ export function Dashboard() {
       if (filters.mileageMax) params.mileage_max = filters.mileageMax;
       if (filters.titleStatus) params.title_status = filters.titleStatus;
 
-      const [listingsRes, statsRes] = await Promise.all([
-        fetchListings(params),
-        fetchStats(),
-      ]);
+      const [listingsRes, statsRes] = await Promise.all([fetchListings(params), fetchStats()]);
       setListings(listingsRes.listings);
       setTotal(listingsRes.total);
       setStats(statsRes);
@@ -160,9 +175,7 @@ export function Dashboard() {
     }
   }, [page, sortField, sortDir, filters]);
 
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
+  useEffect(() => { loadData(); }, [loadData]);
 
   function handleSort(field: SortField) {
     if (sortField === field) {
@@ -174,19 +187,28 @@ export function Dashboard() {
     setPage(0);
   }
 
-  async function handleToggleFavorite(
-    e: React.MouseEvent,
-    listing: Listing,
-  ) {
+  async function handleFetchNow() {
+    if (fetching) return;
+    setFetching(true);
+    try {
+      await fetch('/api/fetch-listings', { method: 'POST' });
+      // Auto-refresh after 12 seconds to show new results
+      setTimeout(() => {
+        setFetching(false);
+        loadData();
+      }, 12_000);
+    } catch (err) {
+      console.error('Fetch listings failed:', err);
+      setFetching(false);
+    }
+  }
+
+  async function handleToggleFavorite(e: React.MouseEvent, listing: Listing) {
     e.stopPropagation();
-    const next = listing.is_favorite ? false : true;
+    const next = !listing.is_favorite;
     try {
       await toggleFavorite(listing.id, next);
-      setListings((prev) =>
-        prev.map((l) =>
-          l.id === listing.id ? { ...l, is_favorite: next ? 1 : 0 } : l,
-        ),
-      );
+      setListings((prev) => prev.map((l) => (l.id === listing.id ? { ...l, is_favorite: next ? 1 : 0 } : l)));
     } catch (err) {
       console.error('Failed to toggle favorite:', err);
     }
@@ -194,46 +216,41 @@ export function Dashboard() {
 
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
-  const sortIndicator = useCallback(
+  const sortIcon = useCallback(
     (field: SortField) => {
-      if (sortField !== field) return '';
-      return sortDir === 'asc' ? ' ↑' : ' ↓';
+      if (sortField !== field) return <span className="text-[var(--text-muted)] opacity-0 group-hover:opacity-50 transition-opacity ml-1">↕</span>;
+      return <span className="text-[var(--amber)] ml-1">{sortDir === 'asc' ? '↑' : '↓'}</span>;
     },
     [sortField, sortDir],
   );
 
   const ratingBreakdown = useMemo(() => {
     if (!stats?.ratingBreakdown) return [];
-    return Object.entries(stats.ratingBreakdown).sort(
-      ([a], [b]) => (RATING_ORDER[a] ?? 99) - (RATING_ORDER[b] ?? 99),
-    );
+    return Object.entries(stats.ratingBreakdown).sort(([a], [b]) => (RATING_ORDER[a] ?? 99) - (RATING_ORDER[b] ?? 99));
   }, [stats]);
 
   return (
     <div className="flex flex-col h-full">
-      {/* Toast notifications — fixed top-right */}
+      {/* Toasts */}
       <div className="fixed top-4 right-4 z-50 flex flex-col gap-2 pointer-events-none">
         {toasts.map((toast) => (
           <div
             key={toast.id}
-            className={`pointer-events-auto flex items-start gap-3 px-4 py-3 rounded-lg shadow-lg border text-sm max-w-xs transition-all ${
+            className={`pointer-events-auto animate-fade-in flex items-start gap-3 px-4 py-3 rounded-xl shadow-lg text-sm max-w-xs ${
               toast.alertType === 'steal'
-                ? 'bg-emerald-900/90 border-emerald-500/40 text-emerald-100'
-                : 'bg-blue-900/90 border-blue-500/40 text-blue-100'
+                ? 'bg-emerald-950/95 border border-emerald-500/30 text-emerald-100'
+                : 'bg-sky-950/95 border border-sky-500/30 text-sky-100'
             }`}
           >
             <span className="text-base mt-0.5">{toast.alertType === 'steal' ? '🔥' : '⭐'}</span>
             <div className="flex-1 min-w-0">
-              <div className="font-semibold">
-                {toast.alertType === 'steal' ? 'Steal Alert!' : 'Great Deal!'}
-              </div>
-              <div className="truncate text-xs opacity-90">
+              <div className="font-semibold text-[13px]">{toast.alertType === 'steal' ? 'Steal Alert!' : 'Great Deal!'}</div>
+              <div className="truncate text-xs opacity-80 mt-0.5">
                 {toast.year} {toast.make} {toast.model} — ${toast.price.toLocaleString()}
               </div>
-              <div className="text-xs opacity-75">{toast.deal_score}% below market</div>
             </div>
             <button
-              className="opacity-60 hover:opacity-100 transition-opacity text-base leading-none bg-transparent border-none cursor-pointer"
+              className="opacity-50 hover:opacity-100 transition-opacity text-sm bg-transparent border-none cursor-pointer text-inherit"
               onClick={() => setToasts((prev) => prev.filter((t) => t.id !== toast.id))}
             >
               ×
@@ -244,12 +261,13 @@ export function Dashboard() {
 
       {/* New listings banner */}
       {newListingCount > 0 && (
-        <div className="flex items-center justify-center gap-3 px-4 py-2 bg-[var(--gold)]/10 border-b border-[var(--gold)]/30 text-sm">
-          <span className="text-[var(--gold)] font-medium">
-            {newListingCount} new listing{newListingCount !== 1 ? 's' : ''} available
+        <div className="flex items-center justify-center gap-3 px-4 py-2 bg-[var(--amber)]/6 border-b border-[var(--amber)]/15 text-sm animate-fade-in">
+          <span className="w-2 h-2 rounded-full bg-[var(--amber)] animate-pulse" />
+          <span className="text-[var(--amber)] font-medium text-[13px]">
+            {newListingCount} new listing{newListingCount !== 1 ? 's' : ''} found
           </span>
           <button
-            className="px-2.5 py-0.5 rounded text-xs font-medium bg-[var(--gold)]/20 text-[var(--gold)] hover:bg-[var(--gold)]/30 transition-colors cursor-pointer border-none"
+            className="btn-secondary text-xs py-1 px-3"
             onClick={() => { setNewListingCount(0); loadData(); }}
           >
             Refresh
@@ -258,276 +276,177 @@ export function Dashboard() {
       )}
 
       {/* Stats bar */}
-      <div className="flex items-center gap-4 px-4 py-3 border-b border-[var(--border)] bg-[var(--bg-surface)]">
-        <div className="text-sm text-[var(--text-secondary)]">
-          <span className="mono text-[var(--text-primary)] font-semibold">
+      <div className="flex items-center gap-5 px-5 py-3.5 border-b border-[var(--border)] bg-[var(--bg-surface)]">
+        <div className="text-[13px] text-[var(--text-secondary)]">
+          <span className="mono text-[var(--text-primary)] font-semibold text-[15px]">
             {total.toLocaleString()}
-          </span>{' '}
-          listings
+          </span>
+          <span className="ml-1.5">listings</span>
         </div>
         {stats && (
           <>
-            <div className="w-px h-4 bg-[var(--border)]" />
-            <div className="text-sm text-[var(--text-secondary)]">
-              <span className="mono text-[var(--text-primary)]">
+            <div className="w-px h-5 bg-[var(--border)]" />
+            <div className="text-[13px] text-[var(--text-secondary)]">
+              <span className="mono text-[var(--text-primary)] font-semibold">
                 {stats.activeDealers}
-              </span>{' '}
-              dealers
+              </span>
+              <span className="ml-1.5">dealers</span>
             </div>
-            <div className="w-px h-4 bg-[var(--border)]" />
-            <div className="flex items-center gap-1.5 flex-wrap">
-              {ratingBreakdown.map(([rating, count]) => (
-                <span
-                  key={rating}
-                  className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium ${RATING_PILL_COLORS[rating] ?? 'bg-neutral-500/15 text-neutral-400'}`}
-                >
-                  {rating}
-                  <span className="mono text-[10px] opacity-75">{count}</span>
-                </span>
-              ))}
-            </div>
+            {ratingBreakdown.length > 0 && (
+              <>
+                <div className="w-px h-5 bg-[var(--border)]" />
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {ratingBreakdown.map(([rating, count]) => {
+                    const c = RATING_COLORS[rating] ?? { bg: 'bg-neutral-500/10', text: 'text-neutral-400', dot: 'bg-neutral-400' };
+                    return (
+                      <span key={rating} className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-semibold ${c.bg} ${c.text}`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${c.dot}`} />
+                        {rating}
+                        <span className="mono text-[10px] opacity-60">{count}</span>
+                      </span>
+                    );
+                  })}
+                </div>
+              </>
+            )}
           </>
         )}
+
+        {/* Fetch Now button — right-aligned */}
+        <div className="ml-auto">
+          <button
+            onClick={handleFetchNow}
+            disabled={fetching}
+            className="btn-secondary text-xs py-1.5 px-3 flex items-center gap-1.5"
+          >
+            {fetching ? (
+              <>
+                <span className="w-3 h-3 border-2 border-current/30 border-t-current rounded-full animate-spin" />
+                Fetching...
+              </>
+            ) : (
+              <>↓ Fetch Now</>
+            )}
+          </button>
+        </div>
       </div>
 
       {/* Filter bar */}
-      <FilterBar
-        filters={filters}
-        onChange={(f) => {
-          setFilters(f);
-          setPage(0);
-        }}
-      />
+      <FilterBar filters={filters} onChange={(f) => { setFilters(f); setPage(0); }} />
 
       {/* Table */}
       <div className="flex-1 overflow-auto">
         {loading ? (
-          <div className="flex items-center justify-center h-64 text-[var(--text-secondary)]">
-            Loading...
+          <div className="flex items-center justify-center h-64 text-[var(--text-muted)]">
+            <div className="flex flex-col items-center gap-3">
+              <div className="w-6 h-6 border-2 border-[var(--amber)]/30 border-t-[var(--amber)] rounded-full animate-spin" />
+              <span className="text-sm">Loading listings...</span>
+            </div>
           </div>
         ) : listings.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-center px-6 py-16">
-            <div className="text-5xl mb-6">🚗</div>
-            <h2 className="text-2xl font-bold text-[var(--text-primary)] mb-3">
-              Welcome to AutoScout
-            </h2>
-            <p className="text-[var(--text-secondary)] max-w-md mb-8 leading-relaxed">
-              Your personal used car intelligence platform. Add dealer websites and AutoScout will
-              automatically scrape their inventory, find the best deals, and alert you in real-time.
-            </p>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-2xl w-full mb-10">
-              <div className="p-4 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)]">
-                <div className="text-2xl mb-2">1️⃣</div>
-                <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-1">Add Dealers</h3>
-                <p className="text-xs text-[var(--text-muted)] leading-relaxed">
-                  Go to <strong>Add Dealers</strong> and paste dealer inventory URLs. AutoScout auto-detects the platform.
-                </p>
-              </div>
-              <div className="p-4 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)]">
-                <div className="text-2xl mb-2">2️⃣</div>
-                <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-1">Auto Scrape</h3>
-                <p className="text-xs text-[var(--text-muted)] leading-relaxed">
-                  Scrapers run automatically on schedule. High priority every 4h, medium every 12h, low daily.
-                </p>
-              </div>
-              <div className="p-4 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)]">
-                <div className="text-2xl mb-2">3️⃣</div>
-                <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-1">Find Deals</h3>
-                <p className="text-xs text-[var(--text-muted)] leading-relaxed">
-                  Listings appear here ranked by value. Get alerts for steals via Discord or the dashboard.
-                </p>
-              </div>
-            </div>
-
-            <button
-              onClick={() => navigate('/dealers/onboard')}
-              className="px-6 py-3 rounded-lg font-semibold text-sm bg-[var(--gold)] text-black hover:opacity-90 transition-opacity cursor-pointer border-none"
-            >
-              ➕ Add Your First Dealer
-            </button>
-
-            <div className="mt-6 flex items-center gap-4 text-xs text-[var(--text-muted)]">
-              <button
-                onClick={() => navigate('/settings')}
-                className="hover:text-[var(--text-secondary)] transition-colors cursor-pointer bg-transparent border-none text-xs text-[var(--text-muted)] underline"
-              >
-                Configure Settings
-              </button>
-              <span>|</span>
-              <button
-                onClick={() => navigate('/scraper-health')}
-                className="hover:text-[var(--text-secondary)] transition-colors cursor-pointer bg-transparent border-none text-xs text-[var(--text-muted)] underline"
-              >
-                View Scraper Health
-              </button>
-            </div>
-          </div>
+          <WelcomeView onAddDealer={() => navigate('/dealers/onboard')} />
         ) : (
-          <table className="w-full text-sm border-collapse">
+          <table className="w-full text-[13px] border-collapse">
             <thead>
-              <tr className="text-left text-xs uppercase tracking-wider text-[var(--text-secondary)] border-b border-[var(--border)] bg-[var(--bg-surface)] sticky top-0 z-10">
-                <th className="px-3 py-2 w-8"></th>
-                <th
-                  className="px-3 py-2 cursor-pointer hover:text-[var(--gold)] transition-colors"
-                  onClick={() => handleSort('deal_score')}
-                >
-                  Deal{sortIndicator('deal_score')}
+              <tr className="text-left text-[11px] uppercase tracking-wider text-[var(--text-muted)] border-b border-[var(--border)] bg-[var(--bg-surface)] sticky top-0 z-10">
+                <th className="px-3 py-2.5 w-8" />
+                <th className="px-3 py-2.5 cursor-pointer group" onClick={() => handleSort('deal_score')}>
+                  <span className="flex items-center">Deal{sortIcon('deal_score')}</span>
                 </th>
-                <th className="px-3 py-2">Vehicle</th>
-                <th
-                  className="px-3 py-2 cursor-pointer hover:text-[var(--gold)] transition-colors"
-                  onClick={() => handleSort('mileage')}
-                >
-                  Mileage{sortIndicator('mileage')}
+                <th className="px-3 py-2.5">Vehicle</th>
+                <th className="px-3 py-2.5 cursor-pointer group" onClick={() => handleSort('mileage')}>
+                  <span className="flex items-center">Mileage{sortIcon('mileage')}</span>
                 </th>
-                <th
-                  className="px-3 py-2 cursor-pointer hover:text-[var(--gold)] transition-colors"
-                  onClick={() => handleSort('asking_price')}
-                >
-                  Price{sortIndicator('asking_price')}
+                <th className="px-3 py-2.5 cursor-pointer group" onClick={() => handleSort('asking_price')}>
+                  <span className="flex items-center">Price{sortIcon('asking_price')}</span>
                 </th>
-                <th
-                  className="px-3 py-2 cursor-pointer hover:text-[var(--gold)] transition-colors"
-                  onClick={() => handleSort('market_value')}
-                >
-                  Market{sortIndicator('market_value')}
+                <th className="px-3 py-2.5 cursor-pointer group" onClick={() => handleSort('market_value')}>
+                  <span className="flex items-center">Market{sortIcon('market_value')}</span>
                 </th>
-                <th
-                  className="px-3 py-2 cursor-pointer hover:text-[var(--gold)] transition-colors"
-                  onClick={() => handleSort('risk_score')}
-                >
-                  Risk{sortIndicator('risk_score')}
+                <th className="px-3 py-2.5 cursor-pointer group" onClick={() => handleSort('risk_score')}>
+                  <span className="flex items-center">Risk{sortIcon('risk_score')}</span>
                 </th>
-                <th
-                  className="px-3 py-2 cursor-pointer hover:text-[var(--gold)] transition-colors"
-                  onClick={() => handleSort('days_on_market')}
-                >
-                  Days{sortIndicator('days_on_market')}
+                <th className="px-3 py-2.5 cursor-pointer group" onClick={() => handleSort('days_on_market')}>
+                  <span className="flex items-center">Days{sortIcon('days_on_market')}</span>
                 </th>
-                <th
-                  className="px-3 py-2 cursor-pointer hover:text-[var(--gold)] transition-colors"
-                  onClick={() => handleSort('distance_miles')}
-                >
-                  Dist{sortIndicator('distance_miles')}
-                </th>
-                <th className="px-3 py-2">Source</th>
+                <th className="px-3 py-2.5">Source</th>
               </tr>
             </thead>
             <tbody>
-              {listings.map((l) => (
+              {listings.map((l, i) => (
                 <tr
                   key={l.id}
                   onClick={() => navigate(`/vehicle/${l.id}`)}
-                  className="border-b border-[var(--border)] hover:bg-[var(--bg-elevated)] cursor-pointer transition-colors"
+                  className="border-b border-[var(--border)] hover:bg-[var(--bg-hover)] cursor-pointer transition-colors"
+                  style={{ animationDelay: `${i * 15}ms` }}
                 >
-                  {/* Favorite */}
-                  <td className="px-3 py-2 text-center">
+                  <td className="px-3 py-2.5 text-center">
                     <button
                       onClick={(e) => handleToggleFavorite(e, l)}
-                      className={`text-base cursor-pointer bg-transparent border-none ${
+                      className={`text-sm cursor-pointer bg-transparent border-none transition-all ${
                         l.is_favorite
-                          ? 'text-[var(--gold)]'
-                          : 'text-[var(--text-muted)] hover:text-[var(--gold-dim)]'
-                      } transition-colors`}
-                      title={l.is_favorite ? 'Unfavorite' : 'Favorite'}
+                          ? 'text-[var(--amber)] scale-110'
+                          : 'text-[var(--text-muted)] hover:text-[var(--amber)] opacity-40 hover:opacity-100'
+                      }`}
                     >
                       {l.is_favorite ? '★' : '☆'}
                     </button>
                   </td>
 
-                  {/* Deal badge */}
-                  <td className="px-3 py-2">
+                  <td className="px-3 py-2.5">
                     <DealBadge rating={l.value_rating} />
                   </td>
 
-                  {/* Vehicle */}
-                  <td className="px-3 py-2">
+                  <td className="px-3 py-2.5">
                     <div className="flex items-center gap-2">
                       <span className="font-medium text-[var(--text-primary)]">
                         {l.year} {l.make} {l.model}
                       </span>
-                      {l.trim && (
-                        <span className="text-[var(--text-secondary)] text-xs">
-                          {l.trim}
-                        </span>
-                      )}
+                      {l.trim && <span className="text-[var(--text-muted)] text-xs">{l.trim}</span>}
                       {isToday(l.first_seen) && (
-                        <span className="px-1.5 py-0.5 text-[10px] font-semibold uppercase rounded bg-[var(--gold)]/15 text-[var(--gold)]">
+                        <span className="px-1.5 py-0.5 text-[9px] font-bold uppercase rounded bg-[var(--amber)]/12 text-[var(--amber)] tracking-wider">
                           New
                         </span>
                       )}
                     </div>
                   </td>
 
-                  {/* Mileage */}
-                  <td className="px-3 py-2 mono text-[var(--text-secondary)]">
-                    {fmtMi(l.mileage)}
-                  </td>
+                  <td className="px-3 py-2.5 mono text-[var(--text-secondary)] text-xs">{fmtMi(l.mileage)}</td>
 
-                  {/* Price */}
-                  <td className="px-3 py-2">
+                  <td className="px-3 py-2.5">
                     <div className="flex items-center gap-1.5">
-                      <span className="mono font-medium">
-                        {fmt$(l.asking_price)}
-                      </span>
+                      <span className="mono font-semibold text-[var(--text-primary)]">{fmt$(l.asking_price)}</span>
                       {l.price_dropped > 0 && (
-                        <span className="inline-flex items-center gap-0.5 text-[var(--red)] text-xs">
-                          <span>↓</span>
-                          <span className="mono text-[10px]">
-                            {l.price_drop_count}
-                          </span>
+                        <span className="inline-flex items-center text-[var(--red)] text-[10px] font-semibold">
+                          ↓{l.price_drop_count}
                         </span>
                       )}
                     </div>
                   </td>
 
-                  {/* Market value */}
-                  <td className="px-3 py-2 mono text-[var(--text-secondary)]">
-                    {fmt$(l.market_value)}
-                  </td>
+                  <td className="px-3 py-2.5 mono text-[var(--text-secondary)] text-xs">{fmt$(l.market_value)}</td>
 
-                  {/* Risk */}
-                  <td className="px-3 py-2">
+                  <td className="px-3 py-2.5">
                     {l.risk_score != null ? (
                       <div className="flex items-center gap-2">
-                        <div className="w-12 h-1.5 rounded-full bg-[var(--border)] overflow-hidden">
+                        <div className="w-10 h-1.5 rounded-full bg-[var(--border)] overflow-hidden">
                           <div
                             className={`h-full rounded-full ${
-                              l.risk_score < 30
-                                ? 'bg-[var(--green)]'
-                                : l.risk_score < 60
-                                  ? 'bg-yellow-500'
-                                  : 'bg-[var(--red)]'
+                              l.risk_score < 30 ? 'bg-[var(--green)]' : l.risk_score < 60 ? 'bg-[var(--orange)]' : 'bg-[var(--red)]'
                             }`}
                             style={{ width: `${Math.min(l.risk_score, 100)}%` }}
                           />
                         </div>
-                        <span className="mono text-xs text-[var(--text-muted)]">
-                          {l.risk_score}
-                        </span>
+                        <span className="mono text-[10px] text-[var(--text-muted)]">{l.risk_score}</span>
                       </div>
                     ) : (
                       <span className="text-[var(--text-muted)]">—</span>
                     )}
                   </td>
 
-                  {/* Days on market */}
-                  <td className="px-3 py-2 mono text-[var(--text-secondary)]">
-                    {l.days_on_market ?? '—'}
-                  </td>
+                  <td className="px-3 py-2.5 mono text-[var(--text-secondary)] text-xs">{l.days_on_market ?? '—'}</td>
 
-                  {/* Distance */}
-                  <td className="px-3 py-2 mono text-[var(--text-secondary)]">
-                    {l.distance_miles != null
-                      ? `${l.distance_miles.toLocaleString()} mi`
-                      : '—'}
-                  </td>
-
-                  {/* Source */}
-                  <td className="px-3 py-2 text-xs text-[var(--text-muted)]">
-                    {l.source}
-                  </td>
+                  <td className="px-3 py-2.5 text-xs text-[var(--text-muted)]">{l.source}</td>
                 </tr>
               ))}
             </tbody>
@@ -537,24 +456,22 @@ export function Dashboard() {
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between px-4 py-2 border-t border-[var(--border)] bg-[var(--bg-surface)] text-sm">
+        <div className="flex items-center justify-between px-5 py-2.5 border-t border-[var(--border)] bg-[var(--bg-surface)] text-sm">
           <button
             disabled={page === 0}
             onClick={() => setPage((p) => p - 1)}
-            className="px-3 py-1 rounded border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--border-hover)] disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer bg-transparent"
+            className="btn-secondary text-xs py-1.5 px-4"
           >
             ← Prev
           </button>
-          <span className="text-[var(--text-secondary)]">
-            Page{' '}
-            <span className="mono text-[var(--text-primary)]">{page + 1}</span>{' '}
-            of{' '}
-            <span className="mono text-[var(--text-primary)]">{totalPages}</span>
+          <span className="text-[var(--text-muted)] text-xs">
+            Page <span className="mono text-[var(--text-secondary)] font-medium">{page + 1}</span> of{' '}
+            <span className="mono text-[var(--text-secondary)] font-medium">{totalPages}</span>
           </span>
           <button
             disabled={page >= totalPages - 1}
             onClick={() => setPage((p) => p + 1)}
-            className="px-3 py-1 rounded border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--border-hover)] disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer bg-transparent"
+            className="btn-secondary text-xs py-1.5 px-4"
           >
             Next →
           </button>

@@ -3,7 +3,7 @@ import { config } from './config.js';
 import { logger } from './logger.js';
 import { initDatabase } from './db/schema.js';
 import { createServer } from './server.js';
-import { startScheduler } from './scheduler.js';
+import { startScheduler, runListingFetch } from './scheduler.js';
 import { initWebSocket } from './websocket.js';
 
 async function main() {
@@ -29,6 +29,12 @@ async function main() {
   startScheduler();
 
   logger.info(`AutoScout ready on port ${config.port}`);
+
+  // Run initial listing fetch 5 seconds after startup so DB is fully settled
+  setTimeout(() => {
+    logger.info('Running initial listing fetch on startup...');
+    runListingFetch().catch((err) => logger.error(err, 'Initial listing fetch failed'));
+  }, 5_000);
 }
 
 main().catch((err) => {
