@@ -22,6 +22,7 @@ import { processListings } from '../enrichment/pipeline.js';
 import { emitScrapeComplete } from '../websocket.js';
 import type { BaseScraper, ScraperResult } from './base.js';
 import type { DealerRow, ScrapeLogRow } from '../db/queries.js';
+import { runCascade } from './cascade.js';
 
 // ── Priority levels ──────────────────────────────────────────────
 
@@ -100,7 +101,23 @@ export class ScraperManager {
     // Run with retry
     let result: ScraperResult;
     try {
-      result = await scrapeWithRetry(scraper, scraperOptions, 3);
+      const isGenericScraper =
+        scraperType === 'ai_generic' ||
+        scraperType === 'generic-ai' ||
+        scraperType === 'generic_ai';
+
+      if (isGenericScraper) {
+        // Use the full cascade for generic dealers so we still leverage
+        // structured data and API discovery before AI extraction.
+        result = await scrapeGenericDealerWithCascade(dealer, scraperOptions);
+
+        // If cascade fails, fall back to the registered generic scraper.
+        if (!result.success && scraper) {
+          result = await scrapeWithRetry(scraper, scraperOptions, 2);
+        }
+      } else {
+        result = await scrapeWithRetry(scraper, scraperOptions, 3);
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       result = { success: false, listings: [], errors: [msg], duration_ms: Date.now() - start };
@@ -489,4 +506,121 @@ function updateDealerReliability(dealerId: number, success: boolean): void {
 
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function buildInventoryCandidates(primaryUrl: string): string[] {
+  const candidates = new Set<string>();
+  candidates.add(primaryUrl);
+
+  try {
+    const u = new URL(primaryUrl);
+    const origin = u.origin;
+    const commonPaths = [
+      '/inventory',
+      '/used-cars',
+      '/vehicles',
+      '/search-inventory',
+      '/pre-owned',
+    ];
+
+    for (const path of commonPaths) {
+      candidates.add(`${origin}${path}`);
+    }
+  } catch {
+    // Ignore malformed URL and keep only primary URL.
+  }
+
+  return Array.from(candidates);
+}
+
+async function fetchHtmlForCascade(url: string): Promise<{ ok: boolean; html: string; error?: string }> {
+  try {
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': config.userAgent,
+        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9',
+        Referer: url,
+        'Cache-Control': 'no-cache',
+        Pragma: 'no-cache',
+      },
+      signal: AbortSignal.timeout(15_000),
+      redirect: 'follow',
+    });
+
+    if (!response.ok) {
+      return { ok: false, html: '', error: `HTTP ${response.status} fetching ${url}` };
+    }
+
+    const contentType = response.headers.get('content-type') ?? '';
+    if (!contentType.includes('text/html') && !contentType.includes('application/xhtml+xml')) {
+      return { ok: false, html: '', error: `Non-HTML response (${contentType}) from ${url}` };
+    }
+
+    const html = await response.text();
+    if (!html || html.length < 200) {
+      return { ok: false, html: '', error: `HTML too short from ${url}` };
+    }
+
+    return { ok: true, html };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { ok: false, html: '', error: `Fetch failed for ${url}: ${msg}` };
+  }
+}
+
+async function scrapeGenericDealerWithCascade(
+  dealer: DealerRow,
+  scraperOptions: Record<string, unknown>,
+): Promise<ScraperResult> {
+  const start = Date.now();
+  const baseUrl =
+    (typeof scraperOptions.inventoryUrl === 'string' ? scraperOptions.inventoryUrl : null) ??
+    dealer.inventory_url ??
+    dealer.website_url;
+
+  if (!baseUrl) {
+    return {
+      success: false,
+      listings: [],
+      errors: ['Dealer has no inventory_url or website_url'],
+      duration_ms: Date.now() - start,
+    };
+  }
+
+  const errors: string[] = [];
+  const candidates = buildInventoryCandidates(baseUrl);
+
+  for (const candidate of candidates) {
+    const fetched = await fetchHtmlForCascade(candidate);
+    if (!fetched.ok) {
+      if (fetched.error) errors.push(fetched.error);
+      continue;
+    }
+
+    const cascade = await runCascade({
+      url: candidate,
+      html: fetched.html,
+      platform: dealer.platform ?? null,
+      dealerId: dealer.id,
+    });
+
+    if (cascade.success && cascade.listings.length > 0) {
+      return {
+        success: true,
+        listings: cascade.listings,
+        errors: cascade.errors,
+        duration_ms: Date.now() - start,
+      };
+    }
+
+    errors.push(...cascade.errors);
+  }
+
+  return {
+    success: false,
+    listings: [],
+    errors,
+    duration_ms: Date.now() - start,
+  };
 }
