@@ -13,7 +13,6 @@ function cleanEnvString(value: string | undefined): string {
   if (!value) return '';
   return value.trim().replace(/^"|"$/g, '');
 }
-
 export const config = {
   // Location
   userLat: parseFloat(process.env.USER_LAT || '29.5111'),
