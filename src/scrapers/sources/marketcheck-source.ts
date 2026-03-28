@@ -92,6 +92,14 @@ export async function fetchMarketCheckListings(
     aggregate.skipped += batchResult.skipped;
     aggregate.errors.push(...batchResult.errors);
 
+    // Diagnostic: log first few skip/error reasons if nothing was inserted
+    if (batchResult.inserted === 0 && batchResult.updated === 0 && batchResult.errors.length > 0) {
+      logger.warn(
+        { firstErrors: batchResult.errors.slice(0, 5), skipped: batchResult.skipped },
+        'MarketCheck source: batch had 0 inserts — check errors',
+      );
+    }
+
     fetched += result.listings.length;
     page++;
 

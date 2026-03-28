@@ -37,13 +37,13 @@ export function validateListing(
   if (!model || model.length < 1) {
     errors.push(`Invalid model: ${model}`);
   }
-  if (mileage == null || mileage < 0 || mileage > 500000) {
+  if (mileage == null || mileage < 0 || mileage > 1_000_000) {
     errors.push(`Invalid mileage: ${mileage}`);
   }
   if (
     askingPrice == null ||
-    askingPrice < 100 ||
-    askingPrice > 500000
+    askingPrice < 0 ||
+    askingPrice > 1_000_000
   ) {
     errors.push(`Invalid price: ${askingPrice}`);
   }

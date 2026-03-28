@@ -208,7 +208,11 @@ async function preEnrichListing(
   }
 
   // ── Market value lookup ─────────────────────────────────────────
-  if (make && model && year > 0) {
+  // Skip if we already have a market_value (e.g. from MarketCheck search ref_price)
+  const existingMv = Number(enriched.market_value) || 0;
+  if (existingMv > 0) {
+    enriched.market_value_source = enriched.market_value_source ?? 'marketcheck_search';
+  } else if (make && model && year > 0) {
     try {
       const mv = await lookupMarketValue(vin, make, model, year, mileage);
       if (mv.marketValue > 0) {

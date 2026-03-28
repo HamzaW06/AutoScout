@@ -333,7 +333,7 @@ export async function getPricePrediction(options: {
   year?: number;
   miles?: number;
 }): Promise<{ predictedPrice: number; confidence: number } | null> {
-  const queryParams: Record<string, string> = {};
+  const queryParams: Record<string, string> = { car_type: 'used' };
 
   if (options.vin) queryParams.vin = options.vin;
   if (options.make) queryParams.make = options.make;
