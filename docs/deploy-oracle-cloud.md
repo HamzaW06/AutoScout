@@ -1,4 +1,4 @@
-﻿# Oracle Cloud Deployment Runbook (AutoScout)
+# Oracle Cloud Deployment Runbook (AutoScout)
 
 This is the clean, corrected flow for deploying AutoScout on Oracle.
 
@@ -24,7 +24,11 @@ VCN -> Subnet -> Security List -> Ingress rules:
 - TCP 22 from 0.0.0.0/0 (SSH)
 - TCP 3000 from 0.0.0.0/0 (App)
 
+Optional later:
+- TCP 80/443 only if you put Nginx in front.
+
 ## 3) SSH from Windows
+From project root (or wherever key exists):
 
 ```powershell
 ssh -i keys\ssh-key-2026-03-28.key ubuntu@<PUBLIC_IP>
@@ -74,10 +78,21 @@ DISCORD_WEBHOOK_URL=
 EOF
 ```
 
-## 7) Build and start
+If you later host frontend separately, change ALLOWED_ORIGINS to your real frontend domain.
+
+## 7) Build
 
 ```bash
 npm run build
+```
+
+Expected result:
+- root TypeScript build passes
+- web build passes
+
+## 8) Start with PM2
+
+```bash
 pm2 start dist/index.js --name autoscout
 pm2 save
 pm2 startup
@@ -85,29 +100,37 @@ pm2 startup
 
 Run the command printed by `pm2 startup`.
 
-## 8) Validate
+Then verify:
 
 ```bash
 pm2 status
 pm2 logs autoscout --lines 80
-curl -s http://localhost:3000/api/health
 ```
 
-Browser:
-- http://<PUBLIC_IP>:3000
-- http://<PUBLIC_IP>:3000/api/health
-
-## 9) Fix Ubuntu iptables ordering if app is unreachable
+## 9) Fix Ubuntu iptables ordering if app still not reachable
+If `iptables` has a REJECT rule before port 3000 ACCEPT, move it above REJECT:
 
 ```bash
 sudo iptables -L INPUT -n --line-numbers
+# if needed, delete bad 3000 rule line and reinsert above reject
 sudo iptables -D INPUT <line-number-for-3000-rule>
 sudo iptables -I INPUT 5 -m state --state NEW -p tcp --dport 3000 -j ACCEPT
 sudo apt install -y iptables-persistent
 sudo netfilter-persistent save
 ```
 
-## 10) Update flow after code changes
+## 10) Validate
+From your laptop browser:
+- http://<PUBLIC_IP>:3000/api/health
+- http://<PUBLIC_IP>:3000
+
+From server:
+
+```bash
+curl -s http://localhost:3000/api/health
+```
+
+## 11) Update flow after code changes
 
 ```bash
 cd ~/AutoScout
@@ -118,3 +141,15 @@ npm run build
 pm2 restart autoscout
 pm2 logs autoscout --lines 80
 ```
+
+## 12) Common failure fixes
+- SSH fails with invalid key format: you used .pub instead of private key.
+- Build errors about React/Vite modules: run npm install inside web folder.
+- "Cannot GET /": use latest code and successful web build; server now serves built frontend.
+- Page not reachable but PM2 online: check Oracle security list + iptables rule order.
+
+## 13) Optional hardening (recommended)
+- Put Nginx reverse proxy in front on 80/443.
+- Add HTTPS (Let's Encrypt) if using domain.
+- Restrict SSH source CIDR from 0.0.0.0/0 to your IP.
+- Rotate exposed API keys now.
