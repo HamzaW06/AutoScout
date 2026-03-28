@@ -1,0 +1,45 @@
+{
+  "name": "autoscout",
+  "version": "0.1.0",
+  "description": "Universal Used Car Search Engine",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "seed-db": "tsx scripts/seed-db.ts",
+    "scrape-now": "tsx scripts/scrape-now.ts",
+    "audit-sweep": "tsx scripts/audit-sweep.ts",
+    "discover-dealers": "tsx scripts/discover-dealers.ts",
+    "import-dealers": "tsx scripts/import-dealers.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "smoke-test": "tsx scripts/smoke-test.ts",
+    "dev:web": "cd web && npm run dev",
+    "build:web": "cd web && npm run build"
+  },
+  "dependencies": {
+    "sql.js": "^1.11.0",
+    "cheerio": "^1.0.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "helmet": "^8.0.0",
+    "express-rate-limit": "^7.5.0",
+    "node-cron": "^3.0.3",
+    "p-limit": "^6.2.0",
+    "pino": "^9.6.0",
+    "pino-pretty": "^13.0.0",
+    "nanoid": "^5.0.9"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.10.0",
+    "@types/node-cron": "^3.0.11",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0",
+    "vitest": "^2.1.0"
+  }
+}

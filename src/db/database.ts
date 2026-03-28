@@ -10,16 +10,19 @@ let dbInstance: Database | null = null;
 export class Database {
   private db: SqlJsDatabase;
   private dbPath: string;
+  private inTransaction = false;
 
   constructor(db: SqlJsDatabase, dbPath: string) {
     this.db = db;
     this.dbPath = dbPath;
   }
 
-  /** Execute SQL that modifies data (INSERT/UPDATE/DELETE). Auto-saves after. */
+  /** Execute SQL that modifies data (INSERT/UPDATE/DELETE). Auto-saves after (unless in transaction). */
   run(sql: string, params?: unknown[]): void {
     this.db.run(sql, params as never[]);
-    this.saveToFile();
+    if (!this.inTransaction) {
+      this.saveToFile();
+    }
   }
 
   /** Get a single row. Returns undefined if no rows match. */
@@ -63,14 +66,21 @@ export class Database {
 
   /** Wrap multiple operations in a transaction. Auto-saves once at the end. */
   transaction<T>(fn: () => T): T {
+    this.inTransaction = true;
     this.db.run('BEGIN TRANSACTION');
     try {
       const result = fn();
       this.db.run('COMMIT');
+      this.inTransaction = false;
       this.saveToFile();
       return result;
     } catch (err) {
-      this.db.run('ROLLBACK');
+      this.inTransaction = false;
+      try {
+        this.db.run('ROLLBACK');
+      } catch {
+        // Transaction may have already been rolled back
+      }
       throw err;
     }
   }
