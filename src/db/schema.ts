@@ -115,10 +115,14 @@ CREATE TABLE IF NOT EXISTS dealers (
   notes TEXT,
   is_active INTEGER DEFAULT 1,
   last_scraped TEXT,
-  last_listing_count INTEGER,
+  last_listing_count INTEGER DEFAULT 0,
   scrape_success_rate REAL,
   scrape_priority TEXT DEFAULT 'medium',
   added_by TEXT DEFAULT 'user',
+  health_state TEXT DEFAULT 'healthy',
+  consecutive_failures INTEGER DEFAULT 0,
+  last_success_at TEXT,
+  last_tier_used TEXT,
   created_at TEXT DEFAULT (datetime('now')),
   updated_at TEXT DEFAULT (datetime('now'))
 );

@@ -113,8 +113,20 @@ export interface DealerRow {
   scrape_success_rate: number | null;
   scrape_priority: string;
   added_by: string;
+  health_state: string;
+  consecutive_failures: number;
+  last_success_at: string | null;
+  last_tier_used: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface DealerHealthRow {
+  health_state: string;
+  consecutive_failures: number;
+  last_success_at: string | null;
+  last_tier_used: string | null;
+  last_listing_count: number;
 }
 
 export interface PriceHistoryRow {
@@ -706,5 +718,95 @@ export function insertTransaction(
   db.run(
     `INSERT INTO transactions (${columns.join(', ')}) VALUES (${placeholders})`,
     values,
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Dealer Health
+// ---------------------------------------------------------------------------
+
+/**
+ * UPDATE health columns on a dealer by ID.
+ * When healthState is 'healthy', also sets last_success_at to the current time.
+ */
+export function updateDealerHealth(
+  id: number,
+  healthState: string,
+  consecutiveFailures: number,
+  lastTierUsed: string | null,
+  lastListingCount: number,
+): void {
+  const db = getDb();
+  const now = new Date().toISOString();
+  const lastSuccessAt = healthState === 'healthy' ? now : undefined;
+
+  if (lastSuccessAt !== undefined) {
+    db.run(
+      `UPDATE dealers
+         SET health_state = ?,
+             consecutive_failures = ?,
+             last_tier_used = ?,
+             last_listing_count = ?,
+             last_success_at = ?,
+             updated_at = ?
+       WHERE id = ?`,
+      [healthState, consecutiveFailures, lastTierUsed, lastListingCount, lastSuccessAt, now, id],
+    );
+  } else {
+    db.run(
+      `UPDATE dealers
+         SET health_state = ?,
+             consecutive_failures = ?,
+             last_tier_used = ?,
+             last_listing_count = ?,
+             updated_at = ?
+       WHERE id = ?`,
+      [healthState, consecutiveFailures, lastTierUsed, lastListingCount, now, id],
+    );
+  }
+}
+
+/**
+ * SELECT health columns for a dealer by ID.
+ * Returns undefined if the dealer does not exist.
+ */
+export function getDealerHealth(id: number): DealerHealthRow | undefined {
+  const db = getDb();
+  return db.get<DealerHealthRow>(
+    `SELECT health_state, consecutive_failures, last_success_at, last_tier_used, last_listing_count
+       FROM dealers
+      WHERE id = ?`,
+    [id],
+  );
+}
+
+/**
+ * SELECT all active dealers whose health_state is 'dead'.
+ * Used to determine which dealers need an alert.
+ */
+export function getDealersNeedingAlert(): DealerRow[] {
+  const db = getDb();
+  return db.all<DealerRow>(
+    `SELECT * FROM dealers WHERE health_state = 'dead' AND is_active = 1`,
+  );
+}
+
+/**
+ * SELECT all active dealers with their health info, ordered by severity:
+ * dead first, then failing, degraded, and finally healthy.
+ */
+export function getAllDealerHealthStatuses(): DealerRow[] {
+  const db = getDb();
+  return db.all<DealerRow>(
+    `SELECT * FROM dealers
+      WHERE is_active = 1
+      ORDER BY
+        CASE health_state
+          WHEN 'dead'     THEN 1
+          WHEN 'failing'  THEN 2
+          WHEN 'degraded' THEN 3
+          WHEN 'healthy'  THEN 4
+          ELSE 5
+        END ASC`,
   );
 }
