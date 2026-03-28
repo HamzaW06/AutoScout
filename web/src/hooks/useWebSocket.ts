@@ -6,6 +6,22 @@ interface WSMessage {
   timestamp: string;
 }
 
+function getWebSocketUrl(): string {
+  const configured = import.meta.env.VITE_WS_BASE_URL?.trim();
+
+  if (configured) {
+    const noTrailingSlash = configured.endsWith('/')
+      ? configured.slice(0, -1)
+      : configured;
+    return noTrailingSlash.endsWith('/ws')
+      ? noTrailingSlash
+      : `${noTrailingSlash}/ws`;
+  }
+
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  return `${protocol}//${window.location.host}/ws`;
+}
+
 export function useWebSocket() {
   const wsRef = useRef<WebSocket | null>(null);
   const [connected, setConnected] = useState(false);
@@ -13,8 +29,7 @@ export function useWebSocket() {
   const listenersRef = useRef<Map<string, Set<(data: unknown) => void>>>(new Map());
 
   useEffect(() => {
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const ws = new WebSocket(`${protocol}//${window.location.hostname}:3000/ws`);
+    const ws = new WebSocket(getWebSocketUrl());
 
     ws.onopen = () => setConnected(true);
     ws.onclose = () => {

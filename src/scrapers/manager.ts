@@ -66,7 +66,7 @@ export class ScraperManager {
       return { success: false, listings: [], errors: [msg], duration_ms: Date.now() - start };
     }
 
-    const scraperType = dealer.scraper_type ?? 'ai_generic';
+    const scraperType = this.resolveScraperType(dealer);
     const scraper = this.scrapers.get(scraperType);
 
     if (!scraper) {
@@ -80,14 +80,21 @@ export class ScraperManager {
       'manager: starting dealer scrape',
     );
 
-    // Build scraper options from dealer config
-    let scraperOptions: unknown = undefined;
+    // Build scraper options from dealer config and dealer URLs.
+    let scraperOptions: Record<string, unknown> = {};
     if (dealer.scraper_config) {
       try {
-        scraperOptions = JSON.parse(dealer.scraper_config);
+        const parsed = JSON.parse(dealer.scraper_config);
+        if (parsed && typeof parsed === 'object') {
+          scraperOptions = parsed as Record<string, unknown>;
+        }
       } catch {
         logger.warn({ dealerId }, 'manager: invalid scraper_config JSON, using defaults');
       }
+    }
+
+    if (scraperOptions.inventoryUrl == null) {
+      scraperOptions.inventoryUrl = dealer.inventory_url ?? dealer.website_url;
     }
 
     // Run with retry
@@ -198,6 +205,33 @@ export class ScraperManager {
     updateDealerReliability(dealer.id, result.success);
 
     return { ...result, duration_ms: durationMs };
+  }
+
+  private resolveScraperType(dealer: DealerRow): string {
+    const rawType = (dealer.scraper_type ?? 'ai_generic').toLowerCase();
+
+    if (rawType === 'platform') {
+      const platform = (dealer.platform ?? '').toLowerCase();
+      if (platform === 'dealer.com' || platform === 'dealer_com' || platform === 'dealercom') {
+        return 'dealer.com';
+      }
+      if (platform === 'frazer') {
+        return 'frazer';
+      }
+      if (platform === 'facebook') {
+        return 'facebook';
+      }
+      return 'ai_generic';
+    }
+
+    if (rawType === 'generic-ai' || rawType === 'generic_ai') {
+      return 'ai_generic';
+    }
+    if (rawType === 'dealer_com' || rawType === 'dealercom') {
+      return 'dealer.com';
+    }
+
+    return rawType;
   }
 
   /**

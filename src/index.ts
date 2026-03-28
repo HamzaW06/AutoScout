@@ -21,8 +21,8 @@ async function main() {
   initWebSocket(httpServer);
 
   // Start listening
-  httpServer.listen(config.port, () => {
-    logger.info(`API server listening on http://localhost:${config.port}`);
+  httpServer.listen(config.port, config.host, () => {
+    logger.info(`API server listening on http://${config.host}:${config.port}`);
   });
 
   // Start cron scheduler

@@ -43,13 +43,17 @@ export function DealerManager() {
   const [detectingPlatform, setDetectingPlatform] = useState(false);
   const [detectedPlatform, setDetectedPlatform] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
 
   const loadDealers = useCallback(async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       const data = await fetchDealers();
       setDealers(data);
     } catch (err) {
+      setLoadError(err instanceof Error ? err.message : 'Failed to load dealers');
       console.error('Failed to load dealers:', err);
     } finally {
       setLoading(false);
@@ -98,6 +102,7 @@ export function DealerManager() {
     e.preventDefault();
     if (!formName.trim()) return;
     setSubmitting(true);
+    setFormError(null);
     try {
       const data: Partial<Dealer> = {
         name: formName.trim(),
@@ -118,6 +123,7 @@ export function DealerManager() {
       setShowForm(false);
       await loadDealers();
     } catch (err) {
+      setFormError(err instanceof Error ? err.message : 'Failed to save dealer');
       console.error('Failed to save dealer:', err);
     } finally {
       setSubmitting(false);
@@ -246,12 +252,16 @@ export function DealerManager() {
               onClick={() => {
                 resetForm();
                 setShowForm(false);
+                setFormError(null);
               }}
               className="px-3 py-1.5 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer bg-transparent border-none transition-colors"
             >
               Cancel
             </button>
           </div>
+          {formError && (
+            <div className="text-xs text-red-400">{formError}</div>
+          )}
         </form>
       )}
 
@@ -260,6 +270,10 @@ export function DealerManager() {
         {loading ? (
           <div className="flex items-center justify-center h-64 text-[var(--text-secondary)]">
             Loading...
+          </div>
+        ) : loadError ? (
+          <div className="flex items-center justify-center h-64 text-red-400">
+            {loadError}
           </div>
         ) : dealers.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-64 text-[var(--text-secondary)]">

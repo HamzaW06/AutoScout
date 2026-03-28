@@ -1,6 +1,14 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
+function parseCsv(value: string | undefined): string[] {
+  if (!value) return [];
+  return value
+    .split(',')
+    .map((part) => part.trim())
+    .filter((part) => part.length > 0);
+}
+
 export const config = {
   // Location
   userLat: parseFloat(process.env.USER_LAT || '29.5111'),
@@ -35,6 +43,8 @@ export const config = {
   userAgent: process.env.USER_AGENT || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
 
   // Server
+  host: process.env.HOST || '0.0.0.0',
   port: parseInt(process.env.PORT || '3000'),
   logLevel: process.env.LOG_LEVEL || 'info',
+  allowedOrigins: parseCsv(process.env.ALLOWED_ORIGINS),
 };

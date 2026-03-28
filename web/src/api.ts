@@ -1,4 +1,25 @@
-const API_BASE = '/api';
+const API_BASE_RAW = import.meta.env.VITE_API_BASE_URL || '/api';
+
+function normalizeBaseUrl(baseUrl: string): string {
+  const trimmed = baseUrl.trim();
+  if (trimmed === '') return '/api';
+  return trimmed.endsWith('/') ? trimmed.slice(0, -1) : trimmed;
+}
+
+const API_BASE = normalizeBaseUrl(API_BASE_RAW);
+
+function apiUrl(path: string): string {
+  return `${API_BASE}${path.startsWith('/') ? path : `/${path}`}`;
+}
+
+async function parseErrorMessage(res: Response): Promise<string> {
+  try {
+    const body = await res.json() as { error?: string; message?: string };
+    return body.error || body.message || `${res.status} ${res.statusText}`;
+  } catch {
+    return `${res.status} ${res.statusText}`;
+  }
+}
 
 export interface Listing {
   id: string;
@@ -65,14 +86,27 @@ export interface Stats {
 }
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
+  const res = await fetch(apiUrl(path), {
     headers: { 'Content-Type': 'application/json' },
     ...options,
   });
   if (!res.ok) {
-    throw new Error(`API error: ${res.status} ${res.statusText}`);
+    const message = await parseErrorMessage(res);
+    throw new Error(`API error: ${message}`);
   }
   return res.json();
+}
+
+async function requestResponse(path: string, options?: RequestInit): Promise<Response> {
+  const res = await fetch(apiUrl(path), {
+    headers: { 'Content-Type': 'application/json' },
+    ...options,
+  });
+  if (!res.ok) {
+    const message = await parseErrorMessage(res);
+    throw new Error(`API error: ${message}`);
+  }
+  return res;
 }
 
 export async function fetchListings(
@@ -170,34 +204,30 @@ export interface AuditStats {
 // Dealer import / scrape / health
 // ---------------------------------------------------------------------------
 
-export async function importDealers(dealers: Array<{ url: string; name: string; city?: string }>) {
-  const res = await fetch(`${API_BASE}/dealers/import`, {
+export async function importDealers(
+  dealers: Array<{ url: string; name: string; city?: string }>,
+): Promise<any> {
+  return request('/dealers/import', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ dealers }),
   });
-  return res.json();
 }
 
-export async function triggerDealerScrape(dealerId: number) {
-  const res = await fetch(`${API_BASE}/dealers/${dealerId}/scrape`, { method: 'POST' });
-  return res.json();
+export async function triggerDealerScrape(dealerId: number): Promise<any> {
+  return request(`/dealers/${dealerId}/scrape`, { method: 'POST' });
 }
 
-export async function fetchDealerHealth(dealerId: number) {
-  const res = await fetch(`${API_BASE}/dealers/${dealerId}/health`);
-  return res.json();
+export async function fetchDealerHealth(dealerId: number): Promise<any> {
+  return request(`/dealers/${dealerId}/health`);
 }
 
-export async function fetchScraperHealth() {
-  const res = await fetch(`${API_BASE}/scraper-health`);
-  return res.json();
+export async function fetchScraperHealth(): Promise<any> {
+  return request('/scraper-health');
 }
 
 export async function exportListings(format: 'csv' | 'json', filters: Record<string, unknown> = {}) {
-  const res = await fetch(`${API_BASE}/listings/export`, {
+  const res = await requestResponse('/listings/export', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ format, filters }),
   });
   if (format === 'csv') {
@@ -217,18 +247,15 @@ export async function exportListings(format: 'csv' | 'json', filters: Record<str
 // Settings
 // ---------------------------------------------------------------------------
 
-export async function fetchSettings() {
-  const res = await fetch(`${API_BASE}/settings`);
-  return res.json();
+export async function fetchSettings(): Promise<Record<string, string>> {
+  return request('/settings');
 }
 
-export async function saveSettings(settings: Record<string, string>) {
-  const res = await fetch(`${API_BASE}/settings`, {
+export async function saveSettings(settings: Record<string, string>): Promise<any> {
+  return request('/settings', {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(settings),
   });
-  return res.json();
 }
 
 // ---------------------------------------------------------------------------
@@ -238,18 +265,15 @@ export async function saveSettings(settings: Record<string, string>) {
 export async function createTransaction(data: {
   listing_id?: string; dealer_id?: number; type: string;
   notes: string; offered_price?: number; final_price?: number;
-}) {
-  const res = await fetch(`${API_BASE}/transactions`, {
+}): Promise<any> {
+  return request('/transactions', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
-  return res.json();
 }
 
-export async function fetchTransactions() {
-  const res = await fetch(`${API_BASE}/transactions`);
-  return res.json();
+export async function fetchTransactions(): Promise<any> {
+  return request('/transactions');
 }
 
 // ---------------------------------------------------------------------------
@@ -260,12 +284,12 @@ export async function fetchVinHistory(listingId: string, forceRefresh = false) {
   if (!forceRefresh) {
     // Try cached first
     try {
-      const cached = await fetch(`${API_BASE}/listings/${listingId}/vin-history`);
+      const cached = await fetch(apiUrl(`/listings/${listingId}/vin-history`));
       if (cached.ok) return cached.json();
     } catch { /* fall through to POST */ }
   }
 
-  const res = await fetch(`${API_BASE}/listings/${listingId}/vin-history`, { method: 'POST' });
+  const res = await fetch(apiUrl(`/listings/${listingId}/vin-history`), { method: 'POST' });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: 'Unknown error' }));
     throw new Error(err.error || 'Failed to fetch VIN history');

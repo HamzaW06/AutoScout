@@ -40,7 +40,7 @@ export async function runCascade(input: CascadeInput): Promise<CascadeResult> {
 
     let platformScraper: DealerComScraper | FrazerScraper | null = null;
 
-    if (input.platform === 'dealer_com') {
+    if (input.platform === 'dealer_com' || input.platform === 'dealer.com') {
       platformScraper = new DealerComScraper();
     } else if (input.platform === 'frazer') {
       platformScraper = new FrazerScraper();

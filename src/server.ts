@@ -30,7 +30,8 @@ import {
   getVinHistory,
   type ActiveListingsOptions,
 } from './db/queries.js';
-import { onboardDealer, bulkOnboard } from './scrapers/onboard.js';
+import { bulkOnboard } from './scrapers/onboard.js';
+import { createConfiguredScraperManager } from './scrapers/registry.js';
 import { getRecalls } from './enrichment/recalls.js';
 import { getComplaints } from './enrichment/complaints.js';
 import { processListings } from './enrichment/pipeline.js';
@@ -177,18 +178,58 @@ function getLastInsertRowId(): number {
   return row!.id;
 }
 
+function normalizePlatform(raw: unknown): string | undefined {
+  const value = sanitizeString(raw)?.toLowerCase();
+  if (!value) return undefined;
+
+  if (value.includes('dealer.com') || value === 'dealer_com' || value === 'dealercom') {
+    return 'dealer.com';
+  }
+  if (value.includes('frazer')) {
+    return 'frazer';
+  }
+  if (value.includes('facebook')) {
+    return 'facebook';
+  }
+
+  return value;
+}
+
+function scraperTypeForPlatform(platform: string | undefined): string {
+  if (platform === 'dealer.com') return 'dealer.com';
+  if (platform === 'frazer') return 'frazer';
+  if (platform === 'facebook') return 'facebook';
+  return 'ai_generic';
+}
+
 // ---------------------------------------------------------------------------
 // Server factory
 // ---------------------------------------------------------------------------
 
 export function createServer(): express.Express {
   const app = express();
+  const configuredOrigins = new Set(config.allowedOrigins);
+  const usingDefaultOrigins = configuredOrigins.size === 0;
 
   // ----- Security middleware -----
   app.use(helmet());
   app.use(
     cors({
-      origin: ['http://localhost:5173', 'http://localhost:3000'],
+      origin: (origin, callback) => {
+        if (!origin) {
+          callback(null, true);
+          return;
+        }
+
+        if (usingDefaultOrigins) {
+          const isLocalOrigin =
+            origin === 'http://localhost:5173' || origin === 'http://localhost:3000';
+          callback(null, isLocalOrigin);
+          return;
+        }
+
+        callback(null, configuredOrigins.has(origin));
+      },
     }),
   );
   app.use(
@@ -374,13 +415,27 @@ export function createServer(): express.Express {
         return;
       }
 
+      const websiteUrl = sanitizeString(body?.website_url);
+      const inventoryUrl = sanitizeString(body?.inventory_url);
+      if (!websiteUrl && !inventoryUrl) {
+        res.status(400).json({ error: 'website_url or inventory_url is required' });
+        return;
+      }
+
+      const normalizedPlatform = normalizePlatform(body?.platform);
+
       const dealer: Record<string, unknown> = { name };
+
+      dealer.website_url = websiteUrl ?? null;
+      dealer.inventory_url = inventoryUrl ?? websiteUrl ?? null;
+      dealer.platform = normalizedPlatform ?? null;
+      dealer.scraper_type = scraperTypeForPlatform(normalizedPlatform);
+      dealer.scraper_config = JSON.stringify({
+        inventoryUrl: inventoryUrl ?? websiteUrl,
+      });
 
       // Optional string fields
       const optionalStrFields = [
-        'website_url',
-        'inventory_url',
-        'platform',
         'address',
         'city',
         'state',
@@ -571,6 +626,8 @@ export function createServer(): express.Express {
       const dealers = rawDealers.map((d: Record<string, unknown>) => ({
         websiteUrl: String(d.url ?? ''),
         dealerName: String(d.name ?? ''),
+        city: sanitizeString(d.city) ?? null,
+        state: sanitizeString(d.state) ?? null,
       })).filter((d) => d.websiteUrl && d.dealerName);
 
       if (dealers.length === 0) {
@@ -580,12 +637,61 @@ export function createServer(): express.Express {
 
       try {
         const results = await bulkOnboard(dealers);
+        let inserted = 0;
+        let insertFailed = 0;
+
+        const persisted = results.map((result, index) => {
+          const input = dealers[index];
+          let dealerId: number | null = null;
+          let persistError: string | null = null;
+
+          try {
+            const platform = normalizePlatform(result.platform);
+            const scraperType = scraperTypeForPlatform(platform);
+            const inventoryUrl = result.inventoryUrl || input.websiteUrl;
+
+            const dealerRecord: Record<string, unknown> = {
+              name: input.dealerName,
+              website_url: input.websiteUrl,
+              inventory_url: inventoryUrl,
+              platform: platform ?? null,
+              scraper_type: scraperType,
+              scraper_config: JSON.stringify({ inventoryUrl }),
+              scrape_priority: result.suggestedPriority,
+            };
+
+            if (input.city) dealerRecord.city = input.city;
+            if (input.state) dealerRecord.state = input.state;
+            if (result.dealerMeta.phone) dealerRecord.phone = result.dealerMeta.phone;
+            if (result.dealerMeta.address) dealerRecord.address = result.dealerMeta.address;
+
+            dealerId = insertDealer(dealerRecord);
+            inserted++;
+          } catch (err) {
+            insertFailed++;
+            persistError = err instanceof Error ? err.message : String(err);
+          }
+
+          return {
+            ...result,
+            dealerId,
+            persisted: dealerId != null,
+            persistError,
+          };
+        });
+
         const succeeded = results.filter((r) => r.success).length;
         const failed = results.length - succeeded;
 
         res.json({
-          summary: { total: results.length, succeeded, failed },
-          results,
+          summary: {
+            total: results.length,
+            succeeded,
+            failed,
+            inserted,
+            insertFailed,
+          },
+          results: persisted,
         });
       } catch (err) {
         logger.error(err, 'Bulk dealer import failed');
@@ -619,7 +725,8 @@ export function createServer(): express.Express {
       }
 
       try {
-        const result = await onboardDealer(websiteUrl, dealer.name);
+        const manager = createConfiguredScraperManager();
+        const result = await manager.scrapeDealer(id);
         res.json(result);
       } catch (err) {
         logger.error(err, 'Dealer scrape failed');
@@ -695,8 +802,7 @@ export function createServer(): express.Express {
       // Run asynchronously after response is sent
       setImmediate(async () => {
         try {
-          const { ScraperManager } = await import('./scrapers/manager.js');
-          const manager = new ScraperManager();
+          const manager = createConfiguredScraperManager();
           await manager.runFullScrape();
         } catch (err) {
           logger.error(err, 'Background full scrape failed');

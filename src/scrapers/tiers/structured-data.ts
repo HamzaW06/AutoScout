@@ -157,7 +157,7 @@ function isVehicleObject(item: unknown): item is JsonLdVehicle {
 
 function parseMicrodata(
   $: cheerio.CheerioAPI,
-  rootEl: cheerio.Element,
+  rootEl: any,
   _baseUrl: string,
 ): JsonLdVehicle | null {
   const root = $(rootEl);

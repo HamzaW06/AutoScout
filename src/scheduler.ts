@@ -5,7 +5,7 @@ import { nightlyAuditSweep } from './audit/sweep.js';
 import { sendDailyDigest, sendWeeklyReport } from './notifications/digest.js';
 import { getActiveDealers, getDealersNeedingAlert } from './db/queries.js';
 import { sendDiscordAlert } from './notifications/discord.js';
-import { ScraperManager } from './scrapers/manager.js';
+import { createConfiguredScraperManager } from './scrapers/registry.js';
 
 export function startScheduler(): void {
   logger.info('Starting scheduler...');
@@ -71,7 +71,7 @@ export function startScheduler(): void {
         logger.info('No critical/high priority dealers to scrape');
         return;
       }
-      const manager = new ScraperManager();
+      const manager = createConfiguredScraperManager();
       for (const dealer of dealers) {
         try {
           await manager.scrapeDealer(dealer.id);
@@ -95,7 +95,7 @@ export function startScheduler(): void {
         logger.info('No medium priority dealers to scrape');
         return;
       }
-      const manager = new ScraperManager();
+      const manager = createConfiguredScraperManager();
       for (const dealer of dealers) {
         try {
           await manager.scrapeDealer(dealer.id);
@@ -119,7 +119,7 @@ export function startScheduler(): void {
         logger.info('No low priority dealers to scrape');
         return;
       }
-      const manager = new ScraperManager();
+      const manager = createConfiguredScraperManager();
       for (const dealer of dealers) {
         try {
           await manager.scrapeDealer(dealer.id);
