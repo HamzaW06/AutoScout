@@ -18,6 +18,7 @@ export const config = {
   googlePlacesApiKey: process.env.GOOGLE_PLACES_API_KEY || '',
   googleAiApiKey: process.env.GOOGLE_AI_API_KEY || '',
   ollamaUrl: process.env.OLLAMA_URL || 'http://localhost:11434',
+  vinAuditApiKey: process.env.VINAUDIT_API_KEY || '',
 
   // Notifications
   smtpHost: process.env.SMTP_HOST || 'smtp.gmail.com',

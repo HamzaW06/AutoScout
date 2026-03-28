@@ -26,6 +26,8 @@ import {
   getTransactions,
   getAllSettings,
   setSetting,
+  saveVinHistory,
+  getVinHistory,
   type ActiveListingsOptions,
 } from './db/queries.js';
 import { onboardDealer, bulkOnboard } from './scrapers/onboard.js';
@@ -733,6 +735,86 @@ export function createServer(): express.Express {
         logger.error(err, 'Listing analysis failed');
         res.status(500).json({ error: 'Internal server error' });
       }
+    }),
+  );
+
+  // POST /api/listings/:id/vin-history — fetch VIN history report (on-demand, costs money)
+  app.post(
+    '/api/listings/:id/vin-history',
+    asyncHandler(async (req, res) => {
+      if (!ensureDb(res)) return;
+
+      const id = sanitizeString(req.params.id);
+      if (!id) {
+        res.status(400).json({ error: 'Invalid listing ID' });
+        return;
+      }
+
+      const listing = getListingById(id);
+      if (!listing) return void res.status(404).json({ error: 'Listing not found' });
+      if (!listing.vin || String(listing.vin).length !== 17) {
+        return void res.status(400).json({ error: 'Listing has no valid VIN' });
+      }
+
+      // Check if we already have a recent report (within 7 days)
+      const existing = getVinHistory(id);
+      if (existing) {
+        const parsed = JSON.parse(existing);
+        const fetchedAt = new Date(parsed.fetchedAt);
+        const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+        if (fetchedAt > sevenDaysAgo) {
+          return void res.json({ cached: true, report: parsed });
+        }
+      }
+
+      const { fetchVehicleHistory } = await import('./enrichment/vehicle-history.js');
+      const report = await fetchVehicleHistory(String(listing.vin));
+
+      if (!report) {
+        return void res.status(502).json({ error: 'Failed to fetch VIN history. Check API key configuration.' });
+      }
+
+      // Save to DB
+      saveVinHistory(id, JSON.stringify(report));
+
+      // Update listing flags from history
+      const updates: Record<string, unknown> = {};
+      if (report.accidentCount > 0) updates.accident_count = report.accidentCount;
+      if (report.ownerCount > 0) updates.owner_count = report.ownerCount;
+      if (report.totalLoss) updates.total_loss_reported = 1;
+      if (report.theftReported) updates.theft_reported = 1;
+      if (report.rollbackSuspected) updates.odometer_rollback = 1;
+      if (report.titleRecords.length > 0) {
+        const latestTitle = report.titleRecords[report.titleRecords.length - 1];
+        if (latestTitle.title_type && latestTitle.title_type !== 'clean') {
+          updates.title_status = latestTitle.title_type;
+        }
+      }
+      if (Object.keys(updates).length > 0) {
+        updateListing(id, updates);
+      }
+
+      res.json({ cached: false, report });
+    }),
+  );
+
+  // GET /api/listings/:id/vin-history — get cached VIN history
+  app.get(
+    '/api/listings/:id/vin-history',
+    asyncHandler(async (req, res) => {
+      if (!ensureDb(res)) return;
+
+      const id = sanitizeString(req.params.id);
+      if (!id) {
+        res.status(400).json({ error: 'Invalid listing ID' });
+        return;
+      }
+
+      const existing = getVinHistory(id);
+      if (!existing) {
+        return void res.status(404).json({ error: 'No VIN history report available. Use POST to fetch one.' });
+      }
+      res.json({ cached: true, report: JSON.parse(existing) });
     }),
   );
 

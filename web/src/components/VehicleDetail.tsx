@@ -5,6 +5,7 @@ import { DealBadge } from './DealBadge';
 import { ScamAlert } from './ScamAlert';
 import { ContactButton } from './ContactButton';
 import { EnrichmentStatus } from './EnrichmentStatus';
+import VinHistoryReport from './VinHistoryReport';
 
 function fmt$(n: number | null): string {
   if (n == null) return '—';
@@ -260,6 +261,13 @@ export function VehicleDetail() {
 
       {/* Enrichment status */}
       <EnrichmentStatus listing={listing} onReAnalyze={handleReAnalyze} />
+
+      {/* VIN History Report */}
+      <VinHistoryReport
+        listingId={listing.id}
+        vin={listing.vin || ''}
+        hasExistingReport={!!listing.vin_history_fetched_at}
+      />
 
       {/* Risk factors */}
       {riskFactors.length > 0 && (

@@ -49,6 +49,7 @@ export interface Listing {
   source_url: string | null;
   scrape_confidence?: number;
   scrape_tier?: string;
+  vin_history_fetched_at?: string;
 }
 
 export interface ListingsResponse {
@@ -248,6 +249,27 @@ export async function createTransaction(data: {
 
 export async function fetchTransactions() {
   const res = await fetch(`${API_BASE}/transactions`);
+  return res.json();
+}
+
+// ---------------------------------------------------------------------------
+// VIN History
+// ---------------------------------------------------------------------------
+
+export async function fetchVinHistory(listingId: string, forceRefresh = false) {
+  if (!forceRefresh) {
+    // Try cached first
+    try {
+      const cached = await fetch(`${API_BASE}/listings/${listingId}/vin-history`);
+      if (cached.ok) return cached.json();
+    } catch { /* fall through to POST */ }
+  }
+
+  const res = await fetch(`${API_BASE}/listings/${listingId}/vin-history`, { method: 'POST' });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: 'Unknown error' }));
+    throw new Error(err.error || 'Failed to fetch VIN history');
+  }
   return res.json();
 }
 

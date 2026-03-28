@@ -72,6 +72,11 @@ CREATE TABLE IF NOT EXISTS listings (
   audit_flags TEXT,
   scrape_confidence REAL DEFAULT 0.5,
   scrape_tier TEXT DEFAULT 'unknown',
+  vin_history_json TEXT,
+  vin_history_fetched_at TEXT,
+  total_loss_reported INTEGER DEFAULT 0,
+  theft_reported INTEGER DEFAULT 0,
+  odometer_rollback INTEGER DEFAULT 0,
   created_at TEXT DEFAULT (datetime('now')),
   updated_at TEXT DEFAULT (datetime('now'))
 );

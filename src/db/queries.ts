@@ -76,6 +76,11 @@ export interface ListingRow {
   audit_flags: string | null;
   scrape_confidence: number;
   scrape_tier: string | null;
+  vin_history_json: string | null;
+  vin_history_fetched_at: string | null;
+  total_loss_reported: number;
+  theft_reported: number;
+  odometer_rollback: number;
   created_at: string;
   updated_at: string;
 }
@@ -827,6 +832,32 @@ export function getDealerHealth(id: number): DealerHealthRow | undefined {
       WHERE id = ?`,
     [id],
   );
+}
+
+// ---------------------------------------------------------------------------
+// VIN History
+// ---------------------------------------------------------------------------
+
+/** Save a VIN history JSON report for a listing. */
+export function saveVinHistory(listingId: string, historyJson: string): void {
+  const db = getDb();
+  db.run(
+    `UPDATE listings SET
+      vin_history_json = ?,
+      vin_history_fetched_at = datetime('now')
+    WHERE id = ?`,
+    [historyJson, listingId],
+  );
+}
+
+/** Get the VIN history JSON for a listing, or null if not yet fetched. */
+export function getVinHistory(listingId: string): string | null {
+  const db = getDb();
+  const row = db.get<{ vin_history_json: string | null }>(
+    'SELECT vin_history_json FROM listings WHERE id = ?',
+    [listingId],
+  );
+  return row?.vin_history_json ?? null;
 }
 
 /**
