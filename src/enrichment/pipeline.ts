@@ -35,6 +35,17 @@ import {
   getPartsPricing,
 } from '../db/queries.js';
 import type { ListingRow } from '../db/queries.js';
+import { lookupMarketValue } from './market-value.js';
+import { getRecalls } from './recalls.js';
+import { getComplaints } from './complaints.js';
+import { getSafetyRating } from './safety-ratings.js';
+import { NHTSACache } from './cache.js';
+import { fireAlerts } from './alert-check.js';
+import { logger } from '../logger.js';
+
+// ── NHTSA cache (module-level singleton) ──────────────────────────
+
+const nhtsaCache = new NHTSACache();
 
 // ── Public types ──────────────────────────────────────────────────
 
@@ -149,6 +160,115 @@ function toScamInput(listing: Record<string, unknown>): ScamInput {
   };
 }
 
+// ── Async pre-enrichment ──────────────────────────────────────────
+
+/**
+ * Perform all async enrichment for a single listing (VIN decode, market value,
+ * NHTSA data). This runs BEFORE the synchronous DB transaction so that the
+ * enriched data is available when scores are calculated inside the transaction.
+ */
+async function preEnrichListing(
+  listing: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  const enriched: Record<string, unknown> = { ...listing };
+
+  // Passthrough scrape confidence / tier
+  enriched.scrape_confidence = listing.scrape_confidence ?? 0.5;
+  enriched.scrape_tier = listing.scrape_tier ?? 'unknown';
+
+  const vin = typeof enriched.vin === 'string' ? enriched.vin : '';
+  const make = typeof enriched.make === 'string' ? enriched.make : '';
+  const model = typeof enriched.model === 'string' ? enriched.model : '';
+  const year = typeof enriched.year === 'number' ? enriched.year : 0;
+  const mileage = typeof enriched.mileage === 'number' ? enriched.mileage : 0;
+
+  // ── VIN decode ──────────────────────────────────────────────────
+  if (vin.length === 17) {
+    try {
+      const decoded = await tryDecodeVin(vin);
+      if (decoded) {
+        const backfillFields: (keyof VinDecodeResult)[] = [
+          'engine',
+          'transmission',
+          'drivetrain',
+          'body_style',
+          'fuel_type',
+        ];
+        for (const field of backfillFields) {
+          if (decoded[field] && !enriched[field]) {
+            enriched[field] = decoded[field];
+          }
+        }
+        enriched.vin_decoded = 1;
+      }
+    } catch (err) {
+      logger.debug({ err, vin }, 'VIN decode in pipeline failed — skipping');
+    }
+  }
+
+  // ── Market value lookup ─────────────────────────────────────────
+  if (make && model && year > 0) {
+    try {
+      const mv = await lookupMarketValue(vin, make, model, year, mileage);
+      if (mv.marketValue > 0) {
+        enriched.market_value = mv.marketValue;
+        enriched.market_value_source = mv.source;
+      }
+    } catch (err) {
+      logger.debug({ err, make, model, year }, 'Market value lookup failed — skipping');
+    }
+  }
+
+  // ── NHTSA auto-enrichment with caching ──────────────────────────
+  if (make && model && year > 0) {
+    // Recalls
+    try {
+      const recallKey = nhtsaCache.makeKey('recalls', make, model, year);
+      let recallData = nhtsaCache.get(recallKey) as { count: number } | null;
+      if (!recallData) {
+        recallData = await getRecalls(make, model, year);
+        nhtsaCache.set(recallKey, recallData);
+      }
+      enriched.recall_count = recallData.count;
+    } catch (err) {
+      logger.debug({ err, make, model, year }, 'Recalls lookup failed — skipping');
+    }
+
+    // Complaints
+    try {
+      const complaintKey = nhtsaCache.makeKey('complaints', make, model, year);
+      let complaintData = nhtsaCache.get(complaintKey) as { count: number } | null;
+      if (!complaintData) {
+        complaintData = await getComplaints(make, model, year);
+        nhtsaCache.set(complaintKey, complaintData);
+      }
+      enriched.complaint_count = complaintData.count;
+    } catch (err) {
+      logger.debug({ err, make, model, year }, 'Complaints lookup failed — skipping');
+    }
+
+    // Safety ratings
+    try {
+      const safetyKey = nhtsaCache.makeKey('safety', make, model, year);
+      let safetyData = nhtsaCache.get(safetyKey) as {
+        found: boolean;
+        overallRating?: number;
+      } | null;
+      if (!safetyData) {
+        safetyData = await getSafetyRating(make, model, year);
+        nhtsaCache.set(safetyKey, safetyData);
+      }
+      if (safetyData.found && safetyData.overallRating != null) {
+        enriched.safety_rating = safetyData.overallRating;
+      }
+    } catch (err) {
+      logger.debug({ err, make, model, year }, 'Safety ratings lookup failed — skipping');
+    }
+  }
+
+  return enriched;
+}
+
 // ── Main Pipeline ─────────────────────────────────────────────────
 
 /**
@@ -157,13 +277,16 @@ function toScamInput(listing: Record<string, unknown>): ScamInput {
  * Steps per listing:
  *   1. Normalize fields (make, model, trim, transmission, body style, title status)
  *   2. Validate required fields; skip invalid listings
- *   3. Dedup check; merge if duplicate found
- *   4. Optionally VIN-decode to backfill missing fields
+ *   3. Async pre-enrichment: VIN decode, market value, NHTSA (runs before transaction)
+ *   4. Dedup check; merge if duplicate found
  *   5. Compute scores (risk, deal rating, scam, negotiation)
  *   6. Calculate distance from user location
  *   7. Insert or update in the database
+ *   8. Fire alerts for exceptional deals
  *
- * The entire batch is wrapped in a database transaction for performance.
+ * Async enrichment (steps 3) runs outside the DB transaction because sql.js
+ * transactions are synchronous. DB operations are batched in a transaction
+ * for performance.
  */
 export async function processListings(
   rawListings: Record<string, unknown>[],
@@ -186,62 +309,97 @@ export async function processListings(
   // Collect ScamInput records from existing listings (for scam detection cross-ref)
   const allScamInputs: ScamInput[] = existingRows.map((r) => toScamInput(r as unknown as Record<string, unknown>));
 
+  // ── Phase A: Normalize + Validate + Async Pre-Enrich ──────────
+  // This must happen OUTSIDE the synchronous DB transaction.
+
+  interface PreEnrichedEntry {
+    enriched: Record<string, unknown>;
+    valid: boolean;
+    skipReason?: string;
+  }
+
+  const preEnrichedListings: PreEnrichedEntry[] = [];
+
+  for (const raw of rawListings) {
+    result.processed++;
+
+    try {
+      // ── 1. NORMALIZE ────────────────────────────────────────────
+      const listing: Record<string, unknown> = { ...raw };
+      listing.source = source;
+
+      if (typeof listing.make === 'string') {
+        listing.make = normalizeMake(listing.make);
+      }
+
+      if (typeof listing.model === 'string') {
+        const normalized = normalizeModel(listing.model);
+
+        // If no trim provided, try to extract from the model string
+        if (!listing.trim) {
+          const extracted = extractTrim(normalized);
+          listing.model = extracted.model;
+          if (extracted.trim) {
+            listing.trim = extracted.trim;
+          }
+        } else {
+          listing.model = normalized;
+        }
+      }
+
+      if (typeof listing.transmission === 'string') {
+        listing.transmission = normalizeTransmission(listing.transmission);
+      }
+
+      if (typeof listing.body_style === 'string') {
+        listing.body_style = normalizeBodyStyle(listing.body_style);
+      }
+
+      if (typeof listing.title_status === 'string') {
+        listing.title_status = normalizeTitleStatus(listing.title_status);
+      }
+
+      // ── 2. VALIDATE ───────────────────────────────────────────
+      const validation = validateListing(listing);
+
+      if (!validation.valid) {
+        result.skipped++;
+        result.errors.push(
+          `Skipped listing: ${validation.errors.join('; ')}`,
+        );
+        preEnrichedListings.push({ enriched: {}, valid: false, skipReason: validation.errors.join('; ') });
+        continue;
+      }
+
+      // Apply auto-fixes from validation
+      const fixed: Record<string, unknown> = { ...validation.fixedListing };
+
+      // ── 3. ASYNC PRE-ENRICHMENT (VIN decode, market value, NHTSA) ─
+      const enriched = await preEnrichListing(fixed);
+
+      preEnrichedListings.push({ enriched, valid: true });
+    } catch (err) {
+      result.errors.push(
+        `Error pre-enriching listing: ${err instanceof Error ? err.message : String(err)}`,
+      );
+      preEnrichedListings.push({ enriched: {}, valid: false, skipReason: 'pre-enrich error' });
+    }
+  }
+
+  // ── Phase B: Synchronous DB transaction ───────────────────────
+  // All async work is done; now run scoring + DB writes in a transaction.
+
+  const postInsertAlerts: Record<string, unknown>[] = [];
+
   const db = getDb();
 
   db.transaction(() => {
-    for (const raw of rawListings) {
-      result.processed++;
+    for (const entry of preEnrichedListings) {
+      if (!entry.valid) continue;
+
+      const fixed = entry.enriched;
 
       try {
-        // ── 1. NORMALIZE ────────────────────────────────────────────
-        const listing: Record<string, unknown> = { ...raw };
-        listing.source = source;
-
-        if (typeof listing.make === 'string') {
-          listing.make = normalizeMake(listing.make);
-        }
-
-        if (typeof listing.model === 'string') {
-          const normalized = normalizeModel(listing.model);
-
-          // If no trim provided, try to extract from the model string
-          if (!listing.trim) {
-            const extracted = extractTrim(normalized);
-            listing.model = extracted.model;
-            if (extracted.trim) {
-              listing.trim = extracted.trim;
-            }
-          } else {
-            listing.model = normalized;
-          }
-        }
-
-        if (typeof listing.transmission === 'string') {
-          listing.transmission = normalizeTransmission(listing.transmission);
-        }
-
-        if (typeof listing.body_style === 'string') {
-          listing.body_style = normalizeBodyStyle(listing.body_style);
-        }
-
-        if (typeof listing.title_status === 'string') {
-          listing.title_status = normalizeTitleStatus(listing.title_status);
-        }
-
-        // ── 2. VALIDATE ───────────────────────────────────────────
-        const validation = validateListing(listing);
-
-        if (!validation.valid) {
-          result.skipped++;
-          result.errors.push(
-            `Skipped listing: ${validation.errors.join('; ')}`,
-          );
-          continue;
-        }
-
-        // Apply auto-fixes from validation
-        const fixed: Record<string, unknown> = { ...validation.fixedListing };
-
         // ── 3. DEDUP CHECK ────────────────────────────────────────
         const candidateForDedup: DeduplicationCandidate = {
           id: (fixed.id as string) || '',
@@ -310,13 +468,9 @@ export async function processListings(
           fixed.sources_found_on = JSON.stringify([source]);
         }
 
-        // ── 4. VIN DECODE (optional) ─────────────────────────────
-        // Skip during bulk processing for performance — VIN decode
-        // can be called on-demand per listing later.
+        // ── 4. COMPUTE SCORES ────────────────────────────────────
 
-        // ── 5. COMPUTE SCORES ────────────────────────────────────
-
-        // 5a. Model intelligence lookup (for risk scoring and repair forecast)
+        // 4a. Model intelligence lookup (for risk scoring and repair forecast)
         const make = fixed.make as string;
         const model = fixed.model as string;
         const year = fixed.year as number;
@@ -325,7 +479,7 @@ export async function processListings(
 
         const modelIntel = getModelIntelligence(make, model, year);
 
-        // 5b. Risk score
+        // 4b. Risk score
         const riskInput: RiskInput = {
           title_status: fixed.title_status as string | undefined,
           owner_count: fixed.owner_count as number | undefined,
@@ -347,7 +501,7 @@ export async function processListings(
         fixed.risk_score = risk.score;
         fixed.risk_factors = JSON.stringify(risk.factors);
 
-        // 5c. Deal rating (only if market_value is available)
+        // 4c. Deal rating (uses market_value set during pre-enrichment, or existing)
         const marketValue = fixed.market_value as number | null | undefined;
         if (marketValue && marketValue > 0) {
           const deal = calculateDealRating(askingPrice, marketValue, mileage);
@@ -358,7 +512,7 @@ export async function processListings(
           fixed.offer_high = deal.offerHigh;
         }
 
-        // 5d. Scam detection
+        // 4d. Scam detection
         const scamInput = toScamInput(fixed);
         // Include this listing in the cross-reference pool
         const scamPool: ScamInput[] = [...allScamInputs, scamInput];
@@ -366,7 +520,7 @@ export async function processListings(
         fixed.scam_score = scam.score;
         fixed.scam_flags = JSON.stringify(scam.flags);
 
-        // 5e. Negotiation power
+        // 4e. Negotiation power
         const negotiationInput: NegotiationInput = {
           days_on_market: fixed.days_on_market as number | undefined,
           price_dropped: fixed.price_dropped as number | undefined,
@@ -386,7 +540,7 @@ export async function processListings(
         fixed.negotiation_power = negotiation.score;
         fixed.negotiation_tactics = JSON.stringify(negotiation.tactics);
 
-        // 5f. Repair forecast
+        // 4f. Repair forecast
         const partsDb = getPartsPricing(make, model, year);
         const modelIntelInput = modelIntel
           ? {
@@ -423,7 +577,7 @@ export async function processListings(
         );
         fixed.repair_forecast = JSON.stringify(forecast);
 
-        // ── 6. DISTANCE CALCULATION ──────────────────────────────
+        // ── 5. DISTANCE CALCULATION ──────────────────────────────
         const sellerLat = fixed.seller_lat as number | null | undefined;
         const sellerLng = fixed.seller_lng as number | null | undefined;
         if (
@@ -437,7 +591,7 @@ export async function processListings(
           ) / 10;
         }
 
-        // ── 7. INSERT / UPDATE DATABASE ──────────────────────────
+        // ── 6. INSERT / UPDATE DATABASE ──────────────────────────
         if (isDuplicate) {
           // Remove the id before passing to updateListing (it's the key, not a field to SET)
           const { id: _id, ...fieldsToUpdate } = fixed;
@@ -450,6 +604,9 @@ export async function processListings(
           result.inserted++;
         }
 
+        // Queue alert check (executed after transaction commits)
+        postInsertAlerts.push({ ...fixed });
+
         // Add the processed listing to the scam pool for subsequent cross-references
         allScamInputs.push(toScamInput(fixed));
 
@@ -460,6 +617,27 @@ export async function processListings(
       }
     }
   });
+
+  // ── Phase C: Fire alerts (after transaction is committed) ─────
+  for (const enriched of postInsertAlerts) {
+    const valueRating = enriched.value_rating as string | undefined;
+    if (valueRating === 'STEAL' || valueRating === 'GREAT') {
+      try {
+        await fireAlerts({
+          value_rating: valueRating,
+          deal_score: (enriched.deal_score as number) || 0,
+          price: (enriched.asking_price as number) || (enriched.price as number) || 0,
+          year: (enriched.year as number) || 0,
+          make: (enriched.make as string) || '',
+          model: (enriched.model as string) || '',
+          listing_url: enriched.listing_url as string | undefined,
+          id: enriched.id as string | undefined,
+        });
+      } catch (err) {
+        logger.error({ err, id: enriched.id }, 'fireAlerts failed — non-blocking');
+      }
+    }
+  }
 
   return result;
 }
