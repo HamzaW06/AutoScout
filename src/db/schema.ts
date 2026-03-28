@@ -306,6 +306,35 @@ CREATE INDEX IF NOT EXISTS idx_audit_log_listing ON audit_log(listing_id);
 CREATE INDEX IF NOT EXISTS idx_audit_log_unresolved ON audit_log(resolved) WHERE resolved = 0;
 `;
 
+function ensureColumn(
+  db: Database,
+  table: string,
+  column: string,
+  definition: string,
+): void {
+  const rows = db.all<{ name?: string }>(`PRAGMA table_info(${table})`);
+  const hasColumn = rows.some((row) => row.name === column);
+  if (!hasColumn) {
+    db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+  }
+}
+
+function runSchemaMigrations(db: Database): void {
+  // Dealer health and orchestration metadata columns added after initial schema versions.
+  ensureColumn(db, 'dealers', 'scrape_priority', "TEXT DEFAULT 'medium'");
+  ensureColumn(db, 'dealers', 'health_state', "TEXT DEFAULT 'healthy'");
+  ensureColumn(db, 'dealers', 'consecutive_failures', 'INTEGER DEFAULT 0');
+  ensureColumn(db, 'dealers', 'last_success_at', 'TEXT');
+  ensureColumn(db, 'dealers', 'last_tier_used', 'TEXT');
+
+  // Listing enrichment columns that may be absent on older databases.
+  ensureColumn(db, 'listings', 'vin_history_json', 'TEXT');
+  ensureColumn(db, 'listings', 'vin_history_fetched_at', 'TEXT');
+  ensureColumn(db, 'listings', 'total_loss_reported', 'INTEGER DEFAULT 0');
+  ensureColumn(db, 'listings', 'theft_reported', 'INTEGER DEFAULT 0');
+  ensureColumn(db, 'listings', 'odometer_rollback', 'INTEGER DEFAULT 0');
+}
+
 /**
  * Initialize the database: open/create the file, create all tables and indexes.
  * Returns the ready-to-use Database instance.
@@ -315,6 +344,7 @@ export async function initDatabase(): Promise<Database> {
 
   db.exec(SCHEMA_SQL);
   db.exec(INDEXES_SQL);
+  runSchemaMigrations(db);
 
   return db;
 }
